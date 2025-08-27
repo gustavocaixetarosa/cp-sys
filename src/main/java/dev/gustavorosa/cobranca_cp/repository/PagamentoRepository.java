@@ -12,4 +12,5 @@ public interface PagamentoRepository extends JpaRepository<Pagamento, Long> {
 
     List<Pagamento> findByDataVencimentoBeforeAndDataPagamentoIsNull(LocalDate data);
 
+    List<Pagamento> findByContratoClienteId(Long clienteId);
 }

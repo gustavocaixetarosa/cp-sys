@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.Map;
 
 @Entity
 @Table(name = "PAGAMENTOS")
@@ -68,6 +69,19 @@ public class Pagamento {
 
     public String getDataPagamento() {
         return dataPagamento != null ? dataPagamento.toString() : "";
+    }
+
+    public boolean foiPagoComAtraso(){
+        if(this.dataPagamento == null){
+            return false;
+        }
+        return this.dataPagamento.isAfter(this.dataVencimento);
+    }
+
+    public boolean dataVencimentoDentroDePeriodo(LocalDate inicio, LocalDate fim){
+        if (this.getDataVencimento() == null) return false;
+        return (!this.getDataVencimento().isBefore(inicio)) &&
+                (!this.getDataVencimento().isAfter(fim));
     }
 
     public void setDataPagamento(LocalDate dataPagamento) {
