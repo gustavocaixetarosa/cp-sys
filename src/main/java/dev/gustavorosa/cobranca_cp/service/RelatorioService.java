@@ -7,8 +7,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class RelatorioService {
@@ -21,7 +23,7 @@ public class RelatorioService {
         List<Pagamento> todosPagamentosDoCliente = pagamentoRepository.findByContratoClienteId(idCliente);
 
         //Calcula taxas e quantidades
-        calculaInadimplencias(todosPagamentosDoCliente, datas);
+        Map<String, Double> inadimplencias = calculaInadimplencias(todosPagamentosDoCliente, datas);
 
         //Monta pdf
 
@@ -32,6 +34,8 @@ public class RelatorioService {
     private Map<String, Double> calculaInadimplencias(List<Pagamento> todosPagamentosDoCliente, RelatorioRequestDTO datas) {
         Double inadimplenciaHistorica = calcularPorcentagemAtrasada(todosPagamentosDoCliente);
         Double inadimplenciaPeriodo = getInadimplenciaPeriodo(todosPagamentosDoCliente, datas);
+        Map<String, Double>
+
     }
 
     private Double getInadimplenciaPeriodo(List<Pagamento> todosPagamentosDoCliente, RelatorioRequestDTO datas) {
@@ -48,5 +52,16 @@ public class RelatorioService {
     private Double calcularPorcentagemAtrasada(List<Pagamento> pagamentos) {
         return pagamentos.isEmpty() ? 0.0 :
                 (pagamentos.stream().filter(Pagamento::foiPagoComAtraso).count() * 100.0) / pagamentos.size();
+    }
+
+    private Map<YearMonth, Long> getInadimplenciaMesAMes(List<Pagamento> pagamentos) {
+        return pagamentos.stream()
+                .collect(Collectors.groupingBy(
+                        p -> YearMonth.from(p.getDataVencimento()),
+                        Collectors.filtering(
+                                Pagamento::foiPagoComAtraso,
+                                Collectors.counting()
+                        )
+                ));
     }
 }
