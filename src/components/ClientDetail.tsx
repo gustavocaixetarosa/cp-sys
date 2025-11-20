@@ -158,11 +158,14 @@ const ClientDetail = () => {
               <StatNumber color="red.700" fontSize="2xl">
                 R$ {totalAtrasado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </StatNumber>
-              <StatHelpText color="red.600" mb={0} fontSize="xs">
-                <HStack>
-                   <WarningIcon /> <Text>Requer atenção</Text>
-                </HStack>
-              </StatHelpText>
+                {totalAtrasado > 0 && (
+                <StatHelpText color="red.600" mb={0} fontSize="xs">
+                  <HStack>
+                    <WarningIcon /> <Text>Requer atenção</Text>
+                  </HStack>
+                </StatHelpText>
+              )}
+              
             </Stat>
           </SimpleGrid>
         </Box>
