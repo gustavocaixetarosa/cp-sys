@@ -3,13 +3,20 @@ package dev.gustavorosa.cobranca_cp.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import dev.gustavorosa.cobranca_cp.dto.PagamentoDTO;
 import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 
 import java.time.LocalDate;
 import java.util.Arrays;
-import java.util.Map;
 
 @Entity
 @Table(name = "PAGAMENTOS")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Pagamento {
 
     @Id
@@ -28,49 +35,6 @@ public class Pagamento {
     private String observacao;
     private Integer numeroParcela;
 
-    public Pagamento() {
-    }
-
-    public Pagamento(Long id, Contrato contrato, Double valor, LocalDate dataVencimento,
-                     LocalDate dataPagamento, SituacaoPagamento status, String observacao, Integer numeroParcela) {
-        this.id = id;
-        this.contrato = contrato;
-        this.valor = valor;
-        this.dataVencimento = dataVencimento;
-        this.dataPagamento = dataPagamento;
-        this.status = status;
-        this.observacao = observacao;
-        this.numeroParcela = numeroParcela;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Double getValor() {
-        return valor;
-    }
-
-    public void setValor(Double valor) {
-        this.valor = valor;
-    }
-
-    public LocalDate getDataVencimento() {
-        return dataVencimento;
-    }
-
-    public void setDataVencimento(LocalDate dataVencimento) {
-        this.dataVencimento = dataVencimento;
-    }
-
-    public String getDataPagamento() {
-        return dataPagamento != null ? dataPagamento.toString() : "";
-    }
-
     public boolean foiPagoComAtraso(){
         if(this.dataPagamento == null){
             return false;
@@ -84,55 +48,6 @@ public class Pagamento {
                 (!this.getDataVencimento().isAfter(fim));
     }
 
-    public void setDataPagamento(LocalDate dataPagamento) {
-        this.dataPagamento = dataPagamento;
-    }
-
-    public SituacaoPagamento getStatus() {
-        return status;
-    }
-
-    public void setStatus(SituacaoPagamento status) {
-        this.status = status;
-    }
-
-    public String getObservacao() {
-        return observacao;
-    }
-
-    public void setObservacao(String observacao) {
-        this.observacao = observacao;
-    }
-
-    public Contrato getContrato() {
-        return contrato;
-    }
-
-    public void setContrato(Contrato contrato) {
-        this.contrato = contrato;
-    }
-
-    public Integer getNumeroParcela() {
-        return numeroParcela;
-    }
-
-    public void setNumeroParcela(Integer numeroParcela) {
-        this.numeroParcela = numeroParcela;
-    }
-
-    @Override
-    public String toString() {
-        return "Pagamento{" +
-                "id=" + id +
-                ", contrato=" + contrato +
-                ", valor=" + valor +
-                ", dataVencimento=" + dataVencimento +
-                ", dataPagamento=" + dataPagamento +
-                ", status=" + status +
-                ", observacao='" + observacao + '\'' +
-                ", numeroParcela=" + numeroParcela +
-                '}';
-    }
 
     public void atualizar(PagamentoDTO pagamento) {
         if(pagamento.data_pagamento() != null){

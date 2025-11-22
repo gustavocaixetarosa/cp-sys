@@ -18,7 +18,7 @@ public record PagamentoDTO(
                 pagamento.getId(),
                 pagamento.getContrato().getId(),
                 pagamento.getValor(),
-                pagamento.getDataPagamento(),
+                pagamento.getDataPagamento() != null ? pagamento.getDataPagamento().toString() : "",
                 pagamento.getDataVencimento().toString(),
                 pagamento.getStatus().toString(),
                 pagamento.getObservacao(),

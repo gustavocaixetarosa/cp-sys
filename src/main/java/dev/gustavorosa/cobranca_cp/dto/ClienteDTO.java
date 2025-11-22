@@ -29,4 +29,17 @@ public record ClienteDTO(
                 novoCliente.getContratos()
         );
     }
+
+    public Cliente toModel() {
+        return Cliente.builder()
+        .id(id())
+        .nome(nome())
+        .endereco(endereco())
+        .telefone(telefone())
+        .dataVencimentoContrato(dataContrato())
+        .registro(registro())
+        .banco(banco())
+        .contratos(contratos())
+        .build();
+    }
 }
