@@ -1,4 +1,4 @@
-package dev.gustavorosa.cobranca_cp;
+package dev.gustavorosa.cobranca_cp.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
