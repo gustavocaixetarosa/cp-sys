@@ -10,6 +10,8 @@ import {
   useDisclosure,
   Flex,
   Icon,
+  Skeleton,
+  Stack,
 } from '@chakra-ui/react';
 import { CheckIcon, EditIcon, TimeIcon } from '@chakra-ui/icons';
 import { useApp } from '../contexts/AppContext';
@@ -19,7 +21,7 @@ import { useState } from 'react';
 import type { Pagamento } from '../types';
 
 const PaymentList = () => {
-  const { selectedContrato, getPagamentosByContrato, marcarPagamentoComoPago } = useApp();
+  const { selectedContrato, getPagamentosByContrato, marcarPagamentoComoPago, isLoading } = useApp();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [pagamentoToEdit, setPagamentoToEdit] = useState<Pagamento | null>(null);
 
@@ -44,7 +46,7 @@ const PaymentList = () => {
         return 'orange';
       case 'ATRASADO':
         return 'red';
-      case 'ABERTO':
+      case 'EM_ABERTO':
         return 'blue';
       default:
         return 'gray';
@@ -59,7 +61,7 @@ const PaymentList = () => {
         return 'Pago c/ atraso';
       case 'ATRASADO':
         return 'Atrasado';
-      case 'ABERTO':
+      case 'EM_ABERTO':
         return 'Aberto';
       default:
         return status;
@@ -86,7 +88,7 @@ const PaymentList = () => {
     .reduce((sum, p) => sum + p.valor, 0);
   
   const totalAberto = pagamentos
-    .filter((p) => p.status === 'ABERTO')
+    .filter((p) => p.status === 'EM_ABERTO')
     .reduce((sum, p) => sum + p.valor, 0);
 
   return (
@@ -123,108 +125,119 @@ const PaymentList = () => {
       </Box>
 
       <Box flex={1} overflowY="auto" p={5}>
-        <VStack spacing={3} align="stretch">
-          {pagamentos.map((pagamento) => {
-            const vencimento = parseISO(pagamento.data_vencimento);
-            const estaAtrasado =
-              pagamento.status === 'ABERTO' && isBefore(vencimento, hoje);
-            
-            const statusFinal = estaAtrasado ? 'ATRASADO' : pagamento.status;
+        {isLoading ? (
+          <Stack spacing={4}>
+            <Skeleton height="100px" borderRadius="xl" />
+            <Skeleton height="100px" borderRadius="xl" />
+            <Skeleton height="100px" borderRadius="xl" />
+          </Stack>
+        ) : (
+          <VStack spacing={3} align="stretch">
+            {pagamentos.map((pagamento) => {
+              const vencimento = parseISO(pagamento.data_vencimento);
+              const statusOriginal = pagamento.status;
+              
+              // backend deve ter atualizado via job diário.
+              // Se não rodou, frontend pode mostrar aviso ou calcular.
+              // Vou manter a lógica visual de atraso apenas para destaque se o backend não tiver atualizado.
+              const estaAtrasadoCalculado = (statusOriginal === 'EM_ABERTO') && isBefore(vencimento, hoje);
+              const statusFinal = estaAtrasadoCalculado ? 'ATRASADO' : statusOriginal;
 
-            return (
-              <Box
-                key={pagamento.pagamento_id}
-                bg="white"
-                p={4}
-                borderRadius="xl"
-                border="1px solid"
-                borderColor="gray.100"
-                position="relative"
-                _hover={{ borderColor: 'blue.200', boxShadow: 'sm' }}
-                transition="all 0.2s"
-              >
-                <Flex justify="space-between" mb={3}>
-                  <HStack>
-                    <Box 
-                      w={8} 
-                      h={8} 
+              return (
+                <Box
+                  key={pagamento.pagamento_id}
+                  bg="white"
+                  p={4}
+                  borderRadius="xl"
+                  border="1px solid"
+                  borderColor="gray.100"
+                  position="relative"
+                  _hover={{ borderColor: 'blue.200', boxShadow: 'sm' }}
+                  transition="all 0.2s"
+                >
+                  <Flex justify="space-between" mb={3}>
+                    <HStack>
+                      <Box 
+                        w={8} 
+                        h={8} 
+                        borderRadius="full" 
+                        bg={`${getStatusColor(statusFinal)}.50`} 
+                        color={`${getStatusColor(statusFinal)}.500`}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        fontSize="xs"
+                        fontWeight="bold"
+                      >
+                        {pagamento.numero_parcela}
+                      </Box>
+                      <Text fontWeight="600" fontSize="sm" color="gray.700">
+                        Parcela
+                      </Text>
+                    </HStack>
+                    <Badge 
+                      colorScheme={getStatusColor(statusFinal)} 
+                      variant="subtle" 
                       borderRadius="full" 
-                      bg={`${getStatusColor(statusFinal)}.50`} 
-                      color={`${getStatusColor(statusFinal)}.500`}
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
+                      px={2}
+                      py={0.5}
                       fontSize="xs"
-                      fontWeight="bold"
                     >
-                      {pagamento.numero_parcela}
+                      {getStatusLabel(statusFinal)}
+                    </Badge>
+                  </Flex>
+
+                  <Flex justify="space-between" align="flex-end">
+                    <Box>
+                      <Text fontSize="xs" color="gray.500" mb={0.5}>Vencimento</Text>
+                      <Text fontSize="sm" fontWeight="medium" color="gray.700">
+                        {format(vencimento, 'dd/MM/yyyy')}
+                      </Text>
                     </Box>
-                    <Text fontWeight="600" fontSize="sm" color="gray.700">
-                      Parcela
-                    </Text>
-                  </HStack>
-                  <Badge 
-                    colorScheme={getStatusColor(statusFinal)} 
-                    variant="subtle" 
-                    borderRadius="full" 
-                    px={2}
-                    py={0.5}
-                    fontSize="xs"
-                  >
-                    {getStatusLabel(statusFinal)}
-                  </Badge>
-                </Flex>
+                    <Box textAlign="right">
+                      <Text fontSize="xs" color="gray.500" mb={0.5}>Valor</Text>
+                      <Text fontWeight="700" color="gray.800">
+                        R$ {pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Text>
+                    </Box>
+                  </Flex>
 
-                <Flex justify="space-between" align="flex-end">
-                  <Box>
-                    <Text fontSize="xs" color="gray.500" mb={0.5}>Vencimento</Text>
-                    <Text fontSize="sm" fontWeight="medium" color="gray.700">
-                      {format(vencimento, 'dd/MM/yyyy')}
-                    </Text>
-                  </Box>
-                  <Box textAlign="right">
-                    <Text fontSize="xs" color="gray.500" mb={0.5}>Valor</Text>
-                    <Text fontWeight="700" color="gray.800">
-                      R$ {pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </Text>
-                  </Box>
-                </Flex>
+                  {(statusFinal === 'EM_ABERTO' || statusFinal === 'ATRASADO') && (
+                    <HStack mt={4} pt={3} borderTop="1px dashed" borderColor="gray.100">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        colorScheme="green"
+                        leftIcon={<CheckIcon />}
+                        onClick={() => handleMarcarPago(pagamento.pagamento_id)}
+                        flex={1}
+                        fontSize="xs"
+                        h={8}
+                      >
+                        Pagar
+                      </Button>
+                      <IconButton
+                        aria-label="Editar pagamento"
+                        icon={<EditIcon />}
+                        size="sm"
+                        variant="ghost"
+                        colorScheme="gray"
+                        onClick={() => handleEdit(pagamento)}
+                        h={8}
+                      />
+                    </HStack>
+                  )}
+                </Box>
+              );
+            })}
 
-                {(pagamento.status === 'ABERTO' || pagamento.status === 'ATRASADO') && (
-                  <HStack mt={4} pt={3} borderTop="1px dashed" borderColor="gray.100">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      colorScheme="green"
-                      leftIcon={<CheckIcon />}
-                      onClick={() => handleMarcarPago(pagamento.pagamento_id)}
-                      flex={1}
-                      fontSize="xs"
-                      h={8}
-                    >
-                      Pagar
-                    </Button>
-                    <IconButton
-                      aria-label="Editar pagamento"
-                      icon={<EditIcon />}
-                      size="sm"
-                      variant="ghost"
-                      colorScheme="gray"
-                      onClick={() => handleEdit(pagamento)}
-                      h={8}
-                    />
-                  </HStack>
-                )}
+            {pagamentos.length === 0 && (
+              <Box textAlign="center" py={8} color="gray.400">
+                <Text fontSize="sm">Nenhum pagamento registrado</Text>
               </Box>
-            );
-          })}
-
-          {pagamentos.length === 0 && (
-            <Box textAlign="center" py={8} color="gray.400">
-              <Text fontSize="sm">Nenhum pagamento registrado</Text>
-            </Box>
-          )}
-        </VStack>
+            )}
+          </VStack>
+        )}
       </Box>
 
       {/* Edit Payment Modal */}

@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
-import type { ReactNode } from 'react';
-import type { Cliente, Contrato, Pagamento } from '../types';
-import { clientes as initialClientes, contratos as initialContratos, pagamentos as initialPagamentos } from '../data/mockData';
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { useToast } from '@chakra-ui/react';
+import type { Cliente, Contrato, Pagamento, CreateClienteDTO, CreateContratoDTO, UpdatePagamentoDTO } from '../types';
+import { clienteService, contratoService, pagamentoService } from '../services/api';
 import { format, parseISO, isBefore } from 'date-fns';
 
 interface AppContextType {
@@ -12,26 +12,27 @@ interface AppContextType {
   selectedCliente: Cliente | null;
   selectedContrato: Contrato | null;
   searchTerm: string;
+  isLoading: boolean;
 
   // Cliente CRUD
-  addCliente: (cliente: Omit<Cliente, 'cliente_id'>) => void;
-  updateCliente: (cliente: Cliente) => void;
-  deleteCliente: (cliente_id: number) => void;
+  addCliente: (cliente: CreateClienteDTO) => Promise<void>;
+  updateCliente: (cliente: Cliente) => Promise<void>;
+  deleteCliente: (cliente_id: number) => Promise<void>;
   selectCliente: (cliente: Cliente | null) => void;
 
   // Contrato CRUD
-  addContrato: (contrato: Omit<Contrato, 'contrato_id'>) => void;
-  updateContrato: (contrato: Contrato) => void;
-  deleteContrato: (contrato_id: number) => void;
+  addContrato: (contrato: CreateContratoDTO) => Promise<void>;
+  updateContrato: (contrato: Contrato) => Promise<void>;
+  deleteContrato: (contrato_id: number) => Promise<void>;
   selectContrato: (contrato: Contrato | null) => void;
   getContratosByCliente: (cliente_id: number) => Contrato[];
 
   // Pagamento CRUD
-  addPagamento: (pagamento: Omit<Pagamento, 'pagamento_id'>) => void;
-  updatePagamento: (pagamento: Pagamento) => void;
-  deletePagamento: (pagamento_id: number) => void;
+  addPagamento: (pagamento: Pagamento) => Promise<void>;
+  updatePagamento: (pagamento: Pagamento) => Promise<void>;
+  deletePagamento: (pagamento_id: number) => Promise<void>;
   getPagamentosByContrato: (contrato_id: number) => Pagamento[];
-  marcarPagamentoComoPago: (pagamento_id: number, data_pagamento: string) => void;
+  marcarPagamentoComoPago: (pagamento_id: number, data_pagamento: string) => Promise<void>;
 
   // Search & Filter
   setSearchTerm: (term: string) => void;
@@ -45,39 +46,82 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [clientes, setClientes] = useState<Cliente[]>(initialClientes);
-  const [contratos, setContratos] = useState<Contrato[]>(initialContratos);
-  const [pagamentos, setPagamentos] = useState<Pagamento[]>(initialPagamentos);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [selectedContrato, setSelectedContrato] = useState<Contrato | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const toast = useToast();
+
+  // Load initial data
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const [clientesData, contratosData, pagamentosData] = await Promise.all([
+          clienteService.getAll(),
+          contratoService.getAll(),
+          pagamentoService.getAll(),
+        ]);
+        setClientes(clientesData);
+        setContratos(contratosData);
+        setPagamentos(pagamentosData);
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        toast({
+          title: 'Erro ao carregar dados',
+          description: 'Não foi possível conectar ao servidor.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [toast]);
 
   // Cliente CRUD
-  const addCliente = (clienteData: Omit<Cliente, 'cliente_id'>) => {
-    const newCliente: Cliente = {
-      ...clienteData,
-      cliente_id: Math.max(...clientes.map((c) => c.cliente_id), 0) + 1,
-    };
-    setClientes([...clientes, newCliente]);
+  const addCliente = async (clienteData: CreateClienteDTO) => {
+    try {
+      const newCliente = await clienteService.create(clienteData);
+      setClientes([...clientes, newCliente]);
+      toast({ title: 'Cliente criado com sucesso', status: 'success' });
+    } catch (error) {
+      toast({ title: 'Erro ao criar cliente', status: 'error' });
+      throw error;
+    }
   };
 
-  const updateCliente = (cliente: Cliente) => {
+  const updateCliente = async (cliente: Cliente) => {
+    console.warn('Update cliente não persistido no backend (endpoint não documentado)');
     setClientes(clientes.map((c) => (c.cliente_id === cliente.cliente_id ? cliente : c)));
     if (selectedCliente?.cliente_id === cliente.cliente_id) {
       setSelectedCliente(cliente);
     }
   };
 
-  const deleteCliente = (cliente_id: number) => {
-    // Delete related contratos and pagamentos
-    const contratoIds = contratos.filter((c) => c.cliente_id === cliente_id).map((c) => c.contrato_id);
-    setPagamentos(pagamentos.filter((p) => !contratoIds.includes(p.contrato_id)));
-    setContratos(contratos.filter((c) => c.cliente_id !== cliente_id));
-    setClientes(clientes.filter((c) => c.cliente_id !== cliente_id));
-    
-    if (selectedCliente?.cliente_id === cliente_id) {
-      setSelectedCliente(null);
-      setSelectedContrato(null);
+  const deleteCliente = async (cliente_id: number) => {
+    try {
+      await clienteService.delete(cliente_id);
+      // Delete related contratos and pagamentos from state
+      const contratoIds = contratos.filter((c) => c.cliente_id === cliente_id).map((c) => c.contrato_id);
+      setPagamentos(pagamentos.filter((p) => !contratoIds.includes(p.contrato_id)));
+      setContratos(contratos.filter((c) => c.cliente_id !== cliente_id));
+      setClientes(clientes.filter((c) => c.cliente_id !== cliente_id));
+      
+      if (selectedCliente?.cliente_id === cliente_id) {
+        setSelectedCliente(null);
+        setSelectedContrato(null);
+      }
+      toast({ title: 'Cliente excluído', status: 'success' });
+    } catch (error) {
+      toast({ title: 'Erro ao excluir cliente', status: 'error' });
+      throw error;
     }
   };
 
@@ -87,44 +131,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Contrato CRUD
-  const addContrato = (contratoData: Omit<Contrato, 'contrato_id'>) => {
-    const newContrato: Contrato = {
-      ...contratoData,
-      contrato_id: Math.max(...contratos.map((c) => c.contrato_id), 0) + 1,
-    };
-    setContratos([...contratos, newContrato]);
-
-    // Generate pagamentos for the new contrato
-    const valorParcela = contratoData.valor_contrato / contratoData.duracao_em_meses;
-    const newPagamentos: Pagamento[] = [];
-    
-    for (let i = 0; i < contratoData.duracao_em_meses; i++) {
-      const dataVencimento = new Date(contratoData.data);
-      dataVencimento.setMonth(dataVencimento.getMonth() + i);
+  const addContrato = async (contratoData: CreateContratoDTO) => {
+    try {
+      const newContrato = await contratoService.create(contratoData);
+      setContratos([...contratos, newContrato]);
       
-      newPagamentos.push({
-        pagamento_id: Math.max(...pagamentos.map((p) => p.pagamento_id), 0) + i + 1,
-        contrato_id: newContrato.contrato_id,
-        valor: valorParcela,
-        data_pagamento: '',
-        data_vencimento: format(dataVencimento, 'yyyy-MM-dd'),
-        numero_parcela: i + 1,
-        status: 'ABERTO',
-        observacao: '',
-      });
+      // Recarregar pagamentos pois o backend gera automaticamente
+      const updatedPagamentos = await pagamentoService.getAll();
+      setPagamentos(updatedPagamentos);
+      
+      toast({ title: 'Contrato criado com sucesso', status: 'success' });
+    } catch (error) {
+      toast({ title: 'Erro ao criar contrato', status: 'error' });
+      throw error;
     }
-    
-    setPagamentos([...pagamentos, ...newPagamentos]);
   };
 
-  const updateContrato = (contrato: Contrato) => {
+  const updateContrato = async (contrato: Contrato) => {
+    console.warn('Update contrato não persistido no backend');
     setContratos(contratos.map((c) => (c.contrato_id === contrato.contrato_id ? contrato : c)));
     if (selectedContrato?.contrato_id === contrato.contrato_id) {
       setSelectedContrato(contrato);
     }
   };
 
-  const deleteContrato = (contrato_id: number) => {
+  const deleteContrato = async (contrato_id: number) => {
+    console.warn('Delete contrato não persistido no backend');
     setPagamentos(pagamentos.filter((p) => p.contrato_id !== contrato_id));
     setContratos(contratos.filter((c) => c.contrato_id !== contrato_id));
     
@@ -142,19 +174,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Pagamento CRUD
-  const addPagamento = (pagamentoData: Omit<Pagamento, 'pagamento_id'>) => {
-    const newPagamento: Pagamento = {
-      ...pagamentoData,
-      pagamento_id: Math.max(...pagamentos.map((p) => p.pagamento_id), 0) + 1,
-    };
-    setPagamentos([...pagamentos, newPagamento]);
+  const addPagamento = async (_pagamentoData: Pagamento) => {
+    console.warn('Criação manual de pagamento não suportada pelo backend');
   };
 
-  const updatePagamento = (pagamento: Pagamento) => {
-    setPagamentos(pagamentos.map((p) => (p.pagamento_id === pagamento.pagamento_id ? pagamento : p)));
+  const updatePagamento = async (pagamento: Pagamento) => {
+    try {
+      const updateDTO: UpdatePagamentoDTO = {
+        pagamento_id: pagamento.pagamento_id,
+        contrato_id: pagamento.contrato_id,
+        valor: pagamento.valor,
+        data_pagamento: pagamento.data_pagamento,
+        data_vencimento: pagamento.data_vencimento,
+        status: pagamento.status,
+        observacao: pagamento.observacao,
+        numero_parcela: pagamento.numero_parcela
+      };
+      
+      const updated = await pagamentoService.update(pagamento.pagamento_id, updateDTO);
+      setPagamentos(pagamentos.map((p) => (p.pagamento_id === updated.pagamento_id ? updated : p)));
+      toast({ title: 'Pagamento atualizado', status: 'success' });
+    } catch (error) {
+      toast({ title: 'Erro ao atualizar pagamento', status: 'error' });
+      throw error;
+    }
   };
 
-  const deletePagamento = (pagamento_id: number) => {
+  const deletePagamento = async (pagamento_id: number) => {
+    console.warn('Delete pagamento não persistido no backend');
     setPagamentos(pagamentos.filter((p) => p.pagamento_id !== pagamento_id));
   };
 
@@ -162,7 +209,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return pagamentos.filter((p) => p.contrato_id === contrato_id).sort((a, b) => a.numero_parcela - b.numero_parcela);
   };
 
-  const marcarPagamentoComoPago = (pagamento_id: number, data_pagamento: string) => {
+  const marcarPagamentoComoPago = async (pagamento_id: number, data_pagamento: string) => {
     const pagamento = pagamentos.find((p) => p.pagamento_id === pagamento_id);
     if (!pagamento) return;
 
@@ -172,12 +219,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ? 'PAGO'
       : 'PAGO_COM_ATRASO';
 
-    updatePagamento({
-      ...pagamento,
-      data_pagamento,
-      status,
-      observacao: `Pago em ${data_pagamento}`,
-    });
+    try {
+      const updateDTO: UpdatePagamentoDTO = {
+        ...pagamento,
+        data_pagamento,
+        status,
+        observacao: `Pago em ${data_pagamento}`,
+      };
+      
+      const updated = await pagamentoService.update(pagamento_id, updateDTO);
+      setPagamentos(pagamentos.map((p) => (p.pagamento_id === updated.pagamento_id ? updated : p)));
+      toast({ title: 'Pagamento registrado', status: 'success' });
+    } catch (error) {
+      toast({ title: 'Erro ao registrar pagamento', status: 'error' });
+    }
   };
 
   // Search & Filter
@@ -219,6 +274,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     selectedCliente,
     selectedContrato,
     searchTerm,
+    isLoading,
     addCliente,
     updateCliente,
     deleteCliente,
@@ -249,4 +305,3 @@ export const useApp = () => {
   }
   return context;
 };
-

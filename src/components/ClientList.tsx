@@ -11,13 +11,15 @@ import {
   Avatar,
   Flex,
   IconButton,
+  Skeleton,
+  Stack,
 } from '@chakra-ui/react';
 import { SearchIcon, AddIcon } from '@chakra-ui/icons';
 import { useApp } from '../contexts/AppContext';
 import ClientFormModal from './forms/ClientFormModal';
 
 const ClientList = () => {
-  const { getFilteredClientes, selectedCliente, selectCliente, searchTerm, setSearchTerm } = useApp();
+  const { getFilteredClientes, selectedCliente, selectCliente, searchTerm, setSearchTerm, isLoading } = useApp();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const clientes = getFilteredClientes();
 
@@ -58,50 +60,66 @@ const ClientList = () => {
       </Box>
 
       <Box flex={1} overflowY="auto" px={2}>
-        <List spacing={1} py={2}>
-          {clientes.map((cliente) => (
-            <ListItem
-              key={cliente.cliente_id}
-              px={3}
-              py={3}
-              mx={1}
-              cursor="pointer"
-              borderRadius="xl"
-              bg={selectedCliente?.cliente_id === cliente.cliente_id ? 'blue.50' : 'transparent'}
-              _hover={{ bg: selectedCliente?.cliente_id === cliente.cliente_id ? 'blue.50' : 'gray.50' }}
-              onClick={() => selectCliente(cliente)}
-              transition="all 0.2s"
-            >
-              <Flex align="center" gap={3}>
-                <Avatar 
-                  size="sm" 
-                  name={cliente.nome} 
-                  bg={selectedCliente?.cliente_id === cliente.cliente_id ? 'blue.500' : 'gray.200'}
-                  color={selectedCliente?.cliente_id === cliente.cliente_id ? 'white' : 'gray.600'}
-                />
-                <Box flex={1} minW={0}>
-                  <Text 
-                    fontWeight="600" 
-                    fontSize="sm" 
-                    color={selectedCliente?.cliente_id === cliente.cliente_id ? 'blue.700' : 'gray.700'}
-                    isTruncated
-                  >
-                    {cliente.nome}
-                  </Text>
-                  <Text fontSize="xs" color="gray.500" isTruncated>
-                    CPF: {cliente.registro}
-                  </Text>
-                </Box>
-              </Flex>
-            </ListItem>
-          ))}
+        {isLoading ? (
+          <Stack spacing={2} py={2}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Box key={i} p={3} mx={1}>
+                <Flex align="center" gap={3}>
+                  <Skeleton borderRadius="full" width="32px" height="32px" />
+                  <Box flex={1}>
+                    <Skeleton height="14px" width="60%" mb={2} />
+                    <Skeleton height="10px" width="40%" />
+                  </Box>
+                </Flex>
+              </Box>
+            ))}
+          </Stack>
+        ) : (
+          <List spacing={1} py={2}>
+            {clientes.map((cliente) => (
+              <ListItem
+                key={cliente.cliente_id}
+                px={3}
+                py={3}
+                mx={1}
+                cursor="pointer"
+                borderRadius="xl"
+                bg={selectedCliente?.cliente_id === cliente.cliente_id ? 'blue.50' : 'transparent'}
+                _hover={{ bg: selectedCliente?.cliente_id === cliente.cliente_id ? 'blue.50' : 'gray.50' }}
+                onClick={() => selectCliente(cliente)}
+                transition="all 0.2s"
+              >
+                <Flex align="center" gap={3}>
+                  <Avatar 
+                    size="sm" 
+                    name={cliente.nome} 
+                    bg={selectedCliente?.cliente_id === cliente.cliente_id ? 'blue.500' : 'gray.200'}
+                    color={selectedCliente?.cliente_id === cliente.cliente_id ? 'white' : 'gray.600'}
+                  />
+                  <Box flex={1} minW={0}>
+                    <Text 
+                      fontWeight="600" 
+                      fontSize="sm" 
+                      color={selectedCliente?.cliente_id === cliente.cliente_id ? 'blue.700' : 'gray.700'}
+                      isTruncated
+                    >
+                      {cliente.nome}
+                    </Text>
+                    <Text fontSize="xs" color="gray.500" isTruncated>
+                      CPF: {cliente.registro}
+                    </Text>
+                  </Box>
+                </Flex>
+              </ListItem>
+            ))}
 
-          {clientes.length === 0 && (
-            <Box p={8} textAlign="center">
-              <Text color="gray.400" fontSize="sm">Nenhum cliente encontrado</Text>
-            </Box>
-          )}
-        </List>
+            {clientes.length === 0 && (
+              <Box p={8} textAlign="center">
+                <Text color="gray.400" fontSize="sm">Nenhum cliente encontrado</Text>
+              </Box>
+            )}
+          </List>
+        )}
       </Box>
 
       <ClientFormModal isOpen={isOpen} onClose={onClose} />

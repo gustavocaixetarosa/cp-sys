@@ -34,7 +34,7 @@ interface PaymentFormData {
   data_vencimento: string;
   data_pagamento: string;
   valor: number;
-  status: 'ABERTO' | 'PAGO' | 'PAGO_COM_ATRASO' | 'ATRASADO';
+  status: 'EM_ABERTO' | 'PAGO' | 'PAGO_COM_ATRASO' | 'ATRASADO';
   observacao?: string;
 }
 
@@ -48,11 +48,17 @@ const PaymentFormModal = ({ isOpen, onClose, pagamento }: PaymentFormModalProps)
     formState: { errors, isSubmitting },
     reset,
   } = useForm<PaymentFormData>({
-    defaultValues: pagamento || {
+    defaultValues: pagamento ? {
+      data_vencimento: pagamento.data_vencimento,
+      data_pagamento: pagamento.data_pagamento,
+      valor: pagamento.valor,
+      status: pagamento.status,
+      observacao: pagamento.observacao || '',
+    } : {
       data_vencimento: '',
       data_pagamento: '',
       valor: 0,
-      status: 'ABERTO',
+      status: 'EM_ABERTO',
       observacao: '',
     },
   });
@@ -73,7 +79,7 @@ const PaymentFormModal = ({ isOpen, onClose, pagamento }: PaymentFormModalProps)
     if (!pagamento) return;
 
     try {
-      updatePagamento({
+      await updatePagamento({
         ...pagamento,
         ...data,
       });
@@ -143,7 +149,7 @@ const PaymentFormModal = ({ isOpen, onClose, pagamento }: PaymentFormModalProps)
                     border="none"
                     _focus={{ bg: 'white', boxShadow: 'outline' }}
                   >
-                    <option value="ABERTO">Aberto</option>
+                    <option value="EM_ABERTO">Aberto</option>
                     <option value="PAGO">Pago</option>
                     <option value="PAGO_COM_ATRASO">Pago com Atraso</option>
                     <option value="ATRASADO">Atrasado</option>

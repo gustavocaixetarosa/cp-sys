@@ -17,7 +17,7 @@ import {
 } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import { useApp } from '../../contexts/AppContext';
-import type { Cliente } from '../../types';
+import type { Cliente, CreateClienteDTO } from '../../types';
 import { useEffect } from 'react';
 
 interface ClientFormModalProps {
@@ -26,13 +26,14 @@ interface ClientFormModalProps {
   cliente?: Cliente;
 }
 
+// Adaptado para o que o backend espera
 interface ClientFormData {
   nome: string;
   endereco: string;
   registro: string;
   telefone: string;
-  data_vencimento: string;
   banco: string;
+  dataContrato: string;
 }
 
 const ClientFormModal = ({ isOpen, onClose, cliente }: ClientFormModalProps) => {
@@ -46,27 +47,34 @@ const ClientFormModal = ({ isOpen, onClose, cliente }: ClientFormModalProps) => 
     formState: { errors, isSubmitting },
     reset,
   } = useForm<ClientFormData>({
-    defaultValues: cliente || {
+    defaultValues: {
       nome: '',
       endereco: '',
       registro: '',
       telefone: '',
-      data_vencimento: '',
       banco: '',
+      dataContrato: new Date().toISOString().split('T')[0],
     },
   });
 
   useEffect(() => {
     if (cliente) {
-      reset(cliente);
+      reset({
+        nome: cliente.nome,
+        endereco: cliente.endereco,
+        registro: cliente.registro,
+        telefone: cliente.telefone,
+        banco: cliente.banco,
+        dataContrato: '', // Cliente existente pode não ter esse dado retornado ou não ser editável
+      });
     } else {
       reset({
         nome: '',
         endereco: '',
         registro: '',
         telefone: '',
-        data_vencimento: '',
         banco: '',
+        dataContrato: new Date().toISOString().split('T')[0],
       });
     }
   }, [cliente, reset]);
@@ -74,7 +82,7 @@ const ClientFormModal = ({ isOpen, onClose, cliente }: ClientFormModalProps) => 
   const onSubmit = async (data: ClientFormData) => {
     try {
       if (isEdit && cliente) {
-        updateCliente({ ...cliente, ...data });
+        await updateCliente({ ...cliente, ...data });
         toast({
           title: 'Cliente atualizado',
           description: 'O cliente foi atualizado com sucesso.',
@@ -83,7 +91,10 @@ const ClientFormModal = ({ isOpen, onClose, cliente }: ClientFormModalProps) => 
           isClosable: true,
         });
       } else {
-        addCliente(data);
+        const createDTO: CreateClienteDTO = {
+          ...data,
+        };
+        await addCliente(createDTO);
         toast({
           title: 'Cliente adicionado',
           description: 'O cliente foi adicionado com sucesso.',
@@ -201,24 +212,23 @@ const ClientFormModal = ({ isOpen, onClose, cliente }: ClientFormModalProps) => 
                   <FormErrorMessage>{errors.banco?.message}</FormErrorMessage>
                 </FormControl>
 
-                <FormControl isInvalid={!!errors.data_vencimento}>
-                  <FormLabel fontSize="sm" color="gray.600" fontWeight="medium">Dia de Vencimento</FormLabel>
-                  <Input
-                    {...register('data_vencimento', {
-                      required: 'Dia de vencimento é obrigatório',
-                      min: { value: 1, message: 'Dia deve ser entre 1 e 31' },
-                      max: { value: 31, message: 'Dia deve ser entre 1 e 31' },
-                    })}
-                    type="number"
-                    placeholder="1-31"
-                    size="lg"
-                    borderRadius="lg"
-                    bg="gray.50"
-                    border="none"
-                    _focus={{ bg: 'white', boxShadow: 'outline' }}
-                  />
-                  <FormErrorMessage>{errors.data_vencimento?.message}</FormErrorMessage>
-                </FormControl>
+                {!isEdit && (
+                  <FormControl isInvalid={!!errors.dataContrato}>
+                    <FormLabel fontSize="sm" color="gray.600" fontWeight="medium">Data de Cadastro</FormLabel>
+                    <Input
+                      {...register('dataContrato', {
+                        required: 'Data é obrigatória',
+                      })}
+                      type="date"
+                      size="lg"
+                      borderRadius="lg"
+                      bg="gray.50"
+                      border="none"
+                      _focus={{ bg: 'white', boxShadow: 'outline' }}
+                    />
+                    <FormErrorMessage>{errors.dataContrato?.message}</FormErrorMessage>
+                  </FormControl>
+                )}
               </SimpleGrid>
             </VStack>
           </ModalBody>

@@ -16,11 +16,13 @@ import {
   SimpleGrid,
   InputGroup,
   InputLeftElement,
+  Box,
 } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
 import { useApp } from '../../contexts/AppContext';
-import type { Contrato } from '../../types';
+import type { Contrato, CreateContratoDTO } from '../../types';
 import { useEffect } from 'react';
+import { addMonths, format } from 'date-fns';
 
 interface ContractFormModalProps {
   isOpen: boolean;
@@ -31,7 +33,8 @@ interface ContractFormModalProps {
 interface ContractFormData {
   nome_contratante: string;
   cpf_contratante: string;
-  data: string;
+  data: string; // dataInicioContrato
+  dataPrimeiraParcela: string;
   duracao_em_meses: number;
   valor_contrato: number;
 }
@@ -46,15 +49,33 @@ const ContractFormModal = ({ isOpen, onClose, contrato }: ContractFormModalProps
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
+    watch,
+    setValue,
   } = useForm<ContractFormData>({
-    defaultValues: contrato || {
+    defaultValues: contrato ? {
+      nome_contratante: contrato.nome_contratante,
+      cpf_contratante: contrato.cpf_contratante,
+      data: contrato.data,
+      duracao_em_meses: contrato.duracao_em_meses,
+      valor_contrato: contrato.valor_contrato,
+      dataPrimeiraParcela: '', // Contrato existente pode não ter esse dado fácil, e update não usa
+    } : {
       nome_contratante: '',
       cpf_contratante: '',
       data: new Date().toISOString().split('T')[0],
+      dataPrimeiraParcela: format(addMonths(new Date(), 1), 'yyyy-MM-dd'),
       duracao_em_meses: 12,
       valor_contrato: 0,
     },
   });
+
+  // Auto-update dataPrimeiraParcela when data changes (if new)
+  const dataInicio = watch('data');
+  useEffect(() => {
+    if (!isEdit && dataInicio) {
+      setValue('dataPrimeiraParcela', format(addMonths(new Date(dataInicio), 1), 'yyyy-MM-dd'));
+    }
+  }, [dataInicio, isEdit, setValue]);
 
   useEffect(() => {
     if (contrato) {
@@ -64,12 +85,14 @@ const ContractFormModal = ({ isOpen, onClose, contrato }: ContractFormModalProps
         data: contrato.data,
         duracao_em_meses: contrato.duracao_em_meses,
         valor_contrato: contrato.valor_contrato,
+        dataPrimeiraParcela: '',
       });
     } else {
       reset({
         nome_contratante: '',
         cpf_contratante: '',
         data: new Date().toISOString().split('T')[0],
+        dataPrimeiraParcela: format(addMonths(new Date(), 1), 'yyyy-MM-dd'),
         duracao_em_meses: 12,
         valor_contrato: 0,
       });
@@ -90,7 +113,7 @@ const ContractFormModal = ({ isOpen, onClose, contrato }: ContractFormModalProps
 
     try {
       if (isEdit && contrato) {
-        updateContrato({ ...contrato, ...data });
+        await updateContrato({ ...contrato, ...data });
         toast({
           title: 'Contrato atualizado',
           description: 'O contrato foi atualizado com sucesso.',
@@ -99,10 +122,33 @@ const ContractFormModal = ({ isOpen, onClose, contrato }: ContractFormModalProps
           isClosable: true,
         });
       } else if (selectedCliente) {
-        addContrato({
-          ...data,
-          cliente_id: selectedCliente.cliente_id,
-        });
+        // Extrair cliente_id de forma segura (pode vir como cliente_id ou id)
+        const clienteId = selectedCliente.cliente_id ?? (selectedCliente as any).id;
+        
+        // Validação explícita do cliente_id
+        if (!clienteId || typeof clienteId !== 'number') {
+          console.error('Cliente selecionado inválido:', selectedCliente);
+          toast({
+            title: 'Erro',
+            description: `Cliente selecionado inválido (ID: ${clienteId}). Por favor, selecione um cliente novamente.`,
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+          });
+          return;
+        }
+
+        const createDTO: CreateContratoDTO = {
+          clienteId: clienteId,
+          nomeContratante: data.nome_contratante,
+          cpfContratante: data.cpf_contratante,
+          duracaoEmMeses: data.duracao_em_meses,
+          dataInicioContrato: data.data,
+          dataPrimeiraParcela: data.dataPrimeiraParcela,
+          valorContrato: data.valor_contrato,
+        };
+        
+        await addContrato(createDTO);
         toast({
           title: 'Contrato adicionado',
           description: 'O contrato foi adicionado com sucesso e os pagamentos foram gerados.',
@@ -185,6 +231,27 @@ const ContractFormModal = ({ isOpen, onClose, contrato }: ContractFormModalProps
                   <FormErrorMessage>{errors.data?.message}</FormErrorMessage>
                 </FormControl>
               </SimpleGrid>
+
+              {!isEdit && (
+                <SimpleGrid columns={2} spacing={5} w="100%">
+                  <FormControl isInvalid={!!errors.dataPrimeiraParcela}>
+                    <FormLabel fontSize="sm" color="gray.600" fontWeight="medium">Data 1ª Parcela</FormLabel>
+                    <Input
+                      {...register('dataPrimeiraParcela', {
+                        required: 'Data da primeira parcela é obrigatória',
+                      })}
+                      type="date"
+                      size="lg"
+                      borderRadius="lg"
+                      bg="gray.50"
+                      border="none"
+                      _focus={{ bg: 'white', boxShadow: 'outline' }}
+                    />
+                    <FormErrorMessage>{errors.dataPrimeiraParcela?.message}</FormErrorMessage>
+                  </FormControl>
+                  <Box /> 
+                </SimpleGrid>
+              )}
 
               <SimpleGrid columns={2} spacing={5} w="100%">
                 <FormControl isInvalid={!!errors.duracao_em_meses}>

@@ -41,7 +41,7 @@ export const generateClientReport = (data: ReportData) => {
     ['Telefone:', cliente.telefone],
     ['Endereço:', cliente.endereco],
     ['Banco:', cliente.banco],
-    ['Dia Vencimento:', cliente.data_vencimento],
+    ['Dia Vencimento:', cliente.data_vencimento || '-'],
   ];
 
   clientInfo.forEach(([label, value]) => {
@@ -69,7 +69,7 @@ export const generateClientReport = (data: ReportData) => {
     .reduce((sum, p) => sum + p.valor, 0);
   
   const totalAberto = pagamentos
-    .filter((p) => contratoIds.includes(p.contrato_id) && p.status === 'ABERTO')
+    .filter((p) => contratoIds.includes(p.contrato_id) && (p.status === 'EM_ABERTO' || p.status === 'ABERTO' as any))
     .reduce((sum, p) => sum + p.valor, 0);
 
   const totalGeral = totalPago + totalAtrasado + totalAberto;
@@ -135,7 +135,8 @@ export const generateClientReport = (data: ReportData) => {
         case 'PAGO': return 'Pago';
         case 'PAGO_COM_ATRASO': return 'Pago c/ Atraso';
         case 'ATRASADO': return 'Atrasado';
-        case 'ABERTO': return 'Aberto';
+        case 'EM_ABERTO': return 'Aberto';
+        case 'ABERTO': return 'Aberto'; // Legacy support
         default: return status;
       }
     };
@@ -182,4 +183,3 @@ export const generateClientReport = (data: ReportData) => {
   const fileName = `relatorio_${cliente.nome.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`;
   doc.save(fileName);
 };
-

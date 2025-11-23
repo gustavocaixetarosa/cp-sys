@@ -23,6 +23,8 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  Skeleton,
+  Stack,
 } from '@chakra-ui/react';
 import { AddIcon, EditIcon, DeleteIcon, HamburgerIcon } from '@chakra-ui/icons';
 import { useApp } from '../contexts/AppContext';
@@ -38,6 +40,7 @@ const ContractList = () => {
     deleteContrato,
     selectedContrato,
     selectContrato,
+    isLoading,
   } = useApp();
   
   const { isOpen: isAddOpen, onOpen: onAddOpen, onClose: onAddClose } = useDisclosure();
@@ -76,19 +79,26 @@ const ContractList = () => {
   return (
     <Box>
       <HStack justify="space-between" mb={6}>
-        <Heading size="sm" color="gray.700">Contratos ({contratos.length})</Heading>
+        <Heading size="sm" color="gray.700">Contratos ({isLoading ? '...' : contratos.length})</Heading>
         <Button 
           leftIcon={<AddIcon />} 
           colorScheme="blue" 
           size="sm" 
           onClick={onAddOpen}
           borderRadius="lg"
+          isDisabled={isLoading}
         >
           Novo Contrato
         </Button>
       </HStack>
 
-      {contratos.length === 0 ? (
+      {isLoading ? (
+        <Stack spacing={4}>
+          <Skeleton height="40px" />
+          <Skeleton height="40px" />
+          <Skeleton height="40px" />
+        </Stack>
+      ) : contratos.length === 0 ? (
         <Box textAlign="center" py={12} bg="gray.50" borderRadius="xl" border="1px dashed" borderColor="gray.200">
           <Text color="gray.500" mb={2}>Nenhum contrato encontrado</Text>
           <Button size="sm" variant="link" colorScheme="blue" onClick={onAddOpen}>Criar primeiro contrato</Button>
