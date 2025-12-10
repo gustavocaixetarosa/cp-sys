@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cobranca-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cobranca}
+      POSTGRES_USER: ${POSTGRES_USER:-gustavo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-139150}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gustavo} -d ${POSTGRES_DB:-cobranca}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cobranca-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cobranca-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-cobranca}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-gustavo}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-139150}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO:-update}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cobranca-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    container_name: cobranca-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - cobranca-network
+    restart: unless-stopped
+
+networks:
+  cobranca-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+

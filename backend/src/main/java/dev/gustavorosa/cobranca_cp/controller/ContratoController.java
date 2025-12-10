@@ -3,7 +3,6 @@ package dev.gustavorosa.cobranca_cp.controller;
 import dev.gustavorosa.cobranca_cp.dto.ContratoDTO;
 import dev.gustavorosa.cobranca_cp.dto.ContratoDetailsDTO;
 import dev.gustavorosa.cobranca_cp.model.Contrato;
-import dev.gustavorosa.cobranca_cp.model.Pagamento;
 import dev.gustavorosa.cobranca_cp.service.ContratoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +14,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/contratos")
-@CrossOrigin(origins = "http://localhost:4200")
+@CrossOrigin(origins = "*")
 public class ContratoController {
 
     @Autowired
