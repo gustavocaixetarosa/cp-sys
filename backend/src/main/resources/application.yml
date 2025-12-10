@@ -1,14 +1,17 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/cobranca
-    username: gustavo
-    password: 139150
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/cobranca}
+    username: ${SPRING_DATASOURCE_USERNAME:gustavo}
+    password: ${SPRING_DATASOURCE_PASSWORD:139150}
 
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: false
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
+
+server:
+  port: ${SERVER_PORT:8080}
 
 app:
   frontend:
-    url: http://localhost:5173
+    url: ${APP_FRONTEND_URL:http://localhost:5173}
