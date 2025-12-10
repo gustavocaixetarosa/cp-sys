@@ -1,10 +1,12 @@
 package dev.gustavorosa.cobranca_cp.dto;
 
+import dev.gustavorosa.cobranca_cp.model.Cliente;
 import dev.gustavorosa.cobranca_cp.model.Contrato;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 
 public record ContratoDTO(
         @NotNull(message = "Id do cliente e obrigatorio.") Long clienteId,
@@ -25,5 +27,17 @@ public record ContratoDTO(
                 novoContrato.getDataInicioContrato(),
                 novoContrato.getValorContrato()
         );
+    }
+
+    public Contrato toModel(Cliente cliente){
+        return Contrato.builder()
+        .cliente(cliente)
+        .nomeContratante(nomeContratante())
+        .cpfContratante(cpfContratante())
+        .duracaoEmMeses(duracaoEmMeses())
+        .dataInicioContrato(dataInicioContrato())
+        .valorContrato(valorContrato())
+        .pagamentos(new ArrayList<>())
+        .build();
     }
 }

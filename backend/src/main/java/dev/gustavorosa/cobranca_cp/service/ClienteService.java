@@ -16,7 +16,7 @@ public class ClienteService {
     private ClienteRepository clienteRepository;
 
     public Cliente registraCliente(ClienteDTO clienteDTO){
-        Cliente novoCliente = new Cliente(clienteDTO);
+        Cliente novoCliente = clienteDTO.toModel();
         return clienteRepository.save(novoCliente);
     }
 

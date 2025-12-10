@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cobranca
+    username: gustavo
+    password: 139150
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+app:
+  frontend:
+    url: http://localhost:5173
