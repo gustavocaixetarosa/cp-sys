@@ -1,7 +1,6 @@
 package dev.gustavorosa.cobranca_cp.service;
 
 import dev.gustavorosa.cobranca_cp.dto.PagamentoDTO;
-import dev.gustavorosa.cobranca_cp.factory.PagamentoFactory;
 import dev.gustavorosa.cobranca_cp.model.Contrato;
 import dev.gustavorosa.cobranca_cp.model.Pagamento;
 import dev.gustavorosa.cobranca_cp.model.SituacaoPagamento;
@@ -20,9 +19,6 @@ public class PagamentoService {
 
     @Autowired
     private PagamentoRepository pagamentoRepository;
-
-    @Autowired
-    private PagamentoFactory pagamentoFactory;
 
     public List<Pagamento> gerarPagamentosAutomaticos(Contrato novoContrato, LocalDate primeiraParcela){
         List<Pagamento> novosPagamentos = new ArrayList<>();
@@ -67,7 +63,6 @@ public class PagamentoService {
     }
 
     public Pagamento atualizarPagamento(PagamentoDTO dto, Long id) {
-        Pagamento pagamento = this.pagamentoFactory.fromDTO(dto);
         Optional<Pagamento> pagamentoRecuperado = this.pagamentoRepository.findById(id);
         if(pagamentoRecuperado.isEmpty()) throw new RuntimeException("Pagamento nao encontrado");
         Pagamento pagamentoParaAtualizar = pagamentoRecuperado.get();
