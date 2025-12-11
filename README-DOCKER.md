@@ -2,10 +2,16 @@
 
 Este projeto utiliza Docker Compose para orquestrar os serviços do sistema.
 
+## 📚 Documentação Adicional
+
+- **[AUTENTICACAO-JWT.md](AUTENTICACAO-JWT.md)** - Sistema de login completo
+- **[CONFIGURACAO-HTTPS.md](CONFIGURACAO-HTTPS.md)** - Guia detalhado HTTPS
+- **[HTTPS-QUICKSTART.md](HTTPS-QUICKSTART.md)** - Configuração rápida HTTPS
+
 ## Estrutura
 
 - **PostgreSQL**: Banco de dados na porta 5432
-- **Backend**: API Spring Boot na porta 8080
+- **Backend**: API Spring Boot na porta 8080 (com autenticação JWT)
 - **Frontend**: Aplicação React servida pelo Nginx na porta 80
 
 ## Como usar

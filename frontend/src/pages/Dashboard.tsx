@@ -1,10 +1,14 @@
-import { Box, Flex, Heading, Text, HStack, Icon, Avatar } from '@chakra-ui/react';
+import { Box, Flex, Heading, Text, HStack, Icon, Avatar, Menu, MenuButton, MenuList, MenuItem, MenuDivider } from '@chakra-ui/react';
 import { SettingsIcon, BellIcon } from '@chakra-ui/icons';
+import { FiLogOut, FiUser } from 'react-icons/fi';
+import { useAuth } from '../contexts/AuthContext';
 import ClientList from '../components/ClientList';
 import ClientDetail from '../components/ClientDetail';
 import PaymentList from '../components/PaymentList';
 
 const Dashboard = () => {
+  const { user, logout } = useAuth();
+  
   return (
     <Flex h="100vh" bg="#f3f4f6" overflow="hidden">
       {/* Sidebar (Navigation) - Simplificado para este exemplo */}
@@ -21,7 +25,23 @@ const Dashboard = () => {
         <Flex direction="column" align="center" gap={6}>
           <Icon as={BellIcon} boxSize={5} color="gray.400" cursor="pointer" _hover={{ color: 'blue.500' }} />
           <Icon as={SettingsIcon} boxSize={5} color="gray.400" cursor="pointer" _hover={{ color: 'blue.500' }} />
-          <Avatar size="sm" src="https://bit.ly/dan-abramov" cursor="pointer" />
+          <Menu>
+            <MenuButton>
+              <Avatar size="sm" name={user?.nome} cursor="pointer" />
+            </MenuButton>
+            <MenuList>
+              <MenuItem icon={<Icon as={FiUser} />} isDisabled>
+                {user?.nome}
+              </MenuItem>
+              <MenuItem fontSize="xs" color="gray.500" isDisabled>
+                {user?.email}
+              </MenuItem>
+              <MenuDivider />
+              <MenuItem icon={<Icon as={FiLogOut} />} onClick={logout} color="red.500">
+                Sair
+              </MenuItem>
+            </MenuList>
+          </Menu>
         </Flex>
       </Box>
 

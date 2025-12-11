@@ -8,6 +8,61 @@ const api = axios.create({
   },
 });
 
+// Request interceptor - adiciona token automaticamente
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor - trata erros 401 (não autorizado)
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Se erro 401 e não é retry
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        // Tenta renovar o token
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (refreshToken) {
+          const response = await axios.post(
+            `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/auth/refresh`,
+            { refreshToken }
+          );
+
+          const { token, refreshToken: newRefresh } = response.data;
+          localStorage.setItem('token', token);
+          localStorage.setItem('refreshToken', newRefresh);
+
+          // Retry original request com novo token
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
+        // Se falhar ao renovar, limpa tudo e redireciona para login
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export const clienteService = {
   getAll: async (): Promise<Cliente[]> => {
     const response = await api.get<Cliente[]>('/clientes');
