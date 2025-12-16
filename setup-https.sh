@@ -124,22 +124,78 @@ certbot --nginx $DOMAINS --email $EMAIL --agree-tos --no-eff-email --redirect
 
 # 8. Atualizar docker-compose.yml
 echo -e "${GREEN}[8/8] Atualizando configurações Docker...${NC}"
-cd /home/gustavorosa/cp-sys
+
+# Detectar diretório do projeto (onde está o docker-compose.yml)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$SCRIPT_DIR"
+
+# Se o script foi executado de outro lugar, tentar encontrar o projeto
+if [ ! -f "$PROJECT_DIR/docker-compose.yml" ]; then
+    # Tentar alguns caminhos comuns
+    for path in "/home/gustavorosa/cp-sys" "/root/cp-sys" "/opt/cp-sys" "$HOME/cp-sys" "$(pwd)"; do
+        if [ -f "$path/docker-compose.yml" ]; then
+            PROJECT_DIR="$path"
+            break
+        fi
+    done
+fi
+
+# Se ainda não encontrou, usar diretório atual
+if [ ! -f "$PROJECT_DIR/docker-compose.yml" ]; then
+    PROJECT_DIR="$(pwd)"
+fi
+
+echo -e "${YELLOW}Usando diretório do projeto: $PROJECT_DIR${NC}"
+cd "$PROJECT_DIR" || {
+    echo -e "${RED}Erro: Não foi possível acessar o diretório do projeto${NC}"
+    echo -e "${YELLOW}Por favor, execute manualmente:${NC}"
+    echo "cd <diretorio-do-projeto>"
+    echo "nano .env"
+    echo "# Adicione ou altere:"
+    echo "VITE_API_URL=https://$DOMAIN"
+    echo "APP_FRONTEND_URL=https://$DOMAIN"
+    echo "docker compose down"
+    echo "docker compose up -d --build"
+    exit 1
+}
 
 # Atualizar .env
 if [ -f .env ]; then
     sed -i "s|VITE_API_URL=.*|VITE_API_URL=https://$DOMAIN|g" .env
     sed -i "s|APP_FRONTEND_URL=.*|APP_FRONTEND_URL=https://$DOMAIN|g" .env
+    echo -e "${GREEN}✅ Arquivo .env atualizado${NC}"
 else
-    echo "⚠️  Arquivo .env não encontrado! Atualize manualmente:"
-    echo "VITE_API_URL=https://$DOMAIN"
-    echo "APP_FRONTEND_URL=https://$DOMAIN"
+    echo -e "${YELLOW}⚠️  Arquivo .env não encontrado! Criando...${NC}"
+    cat > .env <<EOF
+# PostgreSQL Configuration
+POSTGRES_DB=cobranca
+POSTGRES_USER=gustavo
+POSTGRES_PASSWORD=139150
+
+# Backend API URL (usado pelo frontend)
+VITE_API_URL=https://$DOMAIN
+
+# Spring Boot Configuration
+SPRING_JPA_HIBERNATE_DDL_AUTO=update
+
+# Frontend URL (usado pelo backend para CORS)
+APP_FRONTEND_URL=https://$DOMAIN
+EOF
+    echo -e "${GREEN}✅ Arquivo .env criado${NC}"
 fi
 
 # Rebuild containers
-echo -e "${YELLOW}Rebuilding containers...${NC}"
-docker compose down
-docker compose up -d --build
+if [ -f docker-compose.yml ]; then
+    echo -e "${YELLOW}Rebuilding containers...${NC}"
+    docker compose down
+    docker compose up -d --build
+    echo -e "${GREEN}✅ Containers rebuildados${NC}"
+else
+    echo -e "${YELLOW}⚠️  docker-compose.yml não encontrado. Pulando rebuild.${NC}"
+    echo -e "${YELLOW}Execute manualmente quando estiver no diretório correto:${NC}"
+    echo "docker compose down"
+    echo "docker compose up -d --build"
+fi
 
 echo ""
 echo -e "${GREEN}================================================${NC}"
