@@ -60,19 +60,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [clientesData, contratosData, pagamentosData] = await Promise.all([
+        // Usar Promise.allSettled para que uma falha não impeça as outras de carregar
+        const [clientesResult, contratosResult, pagamentosResult] = await Promise.allSettled([
           clienteService.getAll(),
           contratoService.getAll(),
           pagamentoService.getAll(),
         ]);
-        setClientes(clientesData);
-        setContratos(contratosData);
-        setPagamentos(pagamentosData);
+
+        // Processar resultados individualmente
+        if (clientesResult.status === 'fulfilled') {
+          setClientes(clientesResult.value);
+        } else {
+          console.error('Erro ao carregar clientes:', clientesResult.reason);
+          toast({
+            title: 'Erro ao carregar clientes',
+            description: 'Não foi possível carregar a lista de clientes.',
+            status: 'error',
+            duration: 3000,
+            isClosable: true,
+          });
+        }
+
+        if (contratosResult.status === 'fulfilled') {
+          setContratos(contratosResult.value);
+        } else {
+          console.error('Erro ao carregar contratos:', contratosResult.reason);
+          // Não mostrar toast para contratos vazios, apenas log
+          setContratos([]);
+        }
+
+        if (pagamentosResult.status === 'fulfilled') {
+          setPagamentos(pagamentosResult.value);
+        } else {
+          console.error('Erro ao carregar pagamentos:', pagamentosResult.reason);
+          // Não mostrar toast para pagamentos vazios, apenas log
+          setPagamentos([]);
+        }
       } catch (error) {
-        console.error('Erro ao carregar dados:', error);
+        console.error('Erro inesperado ao carregar dados:', error);
         toast({
           title: 'Erro ao carregar dados',
-          description: 'Não foi possível conectar ao servidor.',
+          description: 'Ocorreu um erro inesperado.',
           status: 'error',
           duration: 5000,
           isClosable: true,
