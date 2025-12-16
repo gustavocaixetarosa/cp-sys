@@ -31,6 +31,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         try {
             String jwt = getJwtFromRequest(request);
+            String requestPath = request.getRequestURI();
+            
+            // Log apenas para rotas protegidas (não para /auth)
+            if (!requestPath.startsWith("/auth")) {
+                if (jwt == null) {
+                    log.warn("Request sem token JWT: {} {}", request.getMethod(), requestPath);
+                } else if (!tokenProvider.validateToken(jwt)) {
+                    log.warn("Token JWT inválido para: {} {}", request.getMethod(), requestPath);
+                }
+            }
             
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
                 String email = tokenProvider.getEmailFromToken(jwt);
@@ -41,6 +51,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                log.debug("Usuário autenticado: {} para {}", email, requestPath);
             }
         } catch (Exception ex) {
             log.error("Could not set user authentication in security context", ex);
