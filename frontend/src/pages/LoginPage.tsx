@@ -183,27 +183,6 @@ export const LoginPage: React.FC = () => {
               </HStack>
             </VStack>
           </Box>
-
-          {isLogin && (
-            <Box
-              w="full"
-              bg={boxBg}
-              p={4}
-              borderRadius="md"
-              borderLeft="4px"
-              borderColor="blue.500"
-            >
-              <Text fontSize="sm" fontWeight="bold" mb={2}>
-                Credenciais Padrão (Admin)
-              </Text>
-              <Text fontSize="xs" color="gray.600">
-                Email: admin@cobranca.com
-              </Text>
-              <Text fontSize="xs" color="gray.600">
-                Senha: admin123
-              </Text>
-            </Box>
-          )}
         </VStack>
       </Container>
     </Box>

@@ -8,6 +8,39 @@ const api = axios.create({
   },
 });
 
+// Decodifica o JWT para extrair informações (sem validar assinatura)
+export const decodeToken = (token: string): any => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error('Erro ao decodificar token:', error);
+    return null;
+  }
+};
+
+// Verifica se o token está expirado ou próximo de expirar
+export const isTokenExpired = (token: string, bufferMinutes: number = 5): boolean => {
+  const decoded = decodeToken(token);
+  if (!decoded || !decoded.exp) {
+    return true;
+  }
+  
+  // Exp está em segundos, Date.now() está em milissegundos
+  const expirationTime = decoded.exp * 1000;
+  const bufferTime = bufferMinutes * 60 * 1000;
+  
+  // Retorna true se o token já expirou ou vai expirar nos próximos bufferMinutes
+  return Date.now() >= (expirationTime - bufferTime);
+};
+
 // Request interceptor - adiciona token automaticamente
 api.interceptors.request.use(
   (config) => {
@@ -28,8 +61,10 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Se erro 401 e não é retry
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Se erro 401 e não é retry e não é o endpoint de refresh
+    if (error.response?.status === 401 && 
+        !originalRequest._retry && 
+        !originalRequest.url?.includes('/auth/refresh')) {
       originalRequest._retry = true;
 
       try {
@@ -41,9 +76,12 @@ api.interceptors.response.use(
             { refreshToken }
           );
 
-          const { token, refreshToken: newRefresh } = response.data;
+          const { token, refreshToken: newRefresh, usuario } = response.data;
           localStorage.setItem('token', token);
           localStorage.setItem('refreshToken', newRefresh);
+          if (usuario) {
+            localStorage.setItem('user', JSON.stringify(usuario));
+          }
 
           // Retry original request com novo token
           originalRequest.headers.Authorization = `Bearer ${token}`;
@@ -51,6 +89,7 @@ api.interceptors.response.use(
         }
       } catch (refreshError) {
         // Se falhar ao renovar, limpa tudo e redireciona para login
+        console.error('Erro ao renovar token:', refreshError);
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
