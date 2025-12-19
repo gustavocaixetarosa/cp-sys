@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Cliente, Contrato, Pagamento, CreateClienteDTO, CreateContratoDTO, UpdatePagamentoDTO } from '../types';
+import type { Cliente, Contrato, Pagamento, CreateClienteDTO, CreateContratoDTO, UpdateContratoDTO, UpdatePagamentoDTO } from '../types';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
@@ -142,6 +142,15 @@ export const contratoService = {
   create: async (contrato: CreateContratoDTO): Promise<Contrato> => {
     const response = await api.post<Contrato>('/contratos', contrato);
     return response.data;
+  },
+
+  update: async (id: number, contrato: UpdateContratoDTO): Promise<Contrato> => {
+    const response = await api.put<Contrato>(`/contratos/${id}`, contrato);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/contratos/${id}`);
   }
 };
 

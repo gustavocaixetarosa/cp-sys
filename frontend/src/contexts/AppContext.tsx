@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useToast } from '@chakra-ui/react';
-import type { Cliente, Contrato, Pagamento, CreateClienteDTO, CreateContratoDTO, UpdatePagamentoDTO, StatusPagamento } from '../types';
+import type { Cliente, Contrato, Pagamento, CreateClienteDTO, CreateContratoDTO, UpdateContratoDTO, UpdatePagamentoDTO, StatusPagamento } from '../types';
 import { clienteService, contratoService, pagamentoService } from '../services/api';
 import { format, parseISO, isBefore, isAfter, startOfDay, endOfDay } from 'date-fns';
 
@@ -212,20 +212,41 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateContrato = async (contrato: Contrato) => {
-    console.warn('Update contrato não persistido no backend');
-    setContratos(contratos.map((c: Contrato) => (c.contrato_id === contrato.contrato_id ? contrato : c)));
-    if (selectedContrato?.contrato_id === contrato.contrato_id) {
-      setSelectedContrato(contrato);
+    try {
+      const updateDTO: UpdateContratoDTO = {
+        clienteId: contrato.cliente_id,
+        nomeContratante: contrato.nome_contratante,
+        cpfContratante: contrato.cpf_contratante,
+        duracaoEmMeses: contrato.duracao_em_meses,
+        dataInicioContrato: contrato.data,
+        valorContrato: contrato.valor_contrato,
+      };
+      
+      const updated = await contratoService.update(contrato.contrato_id, updateDTO);
+      setContratos(contratos.map((c: Contrato) => (c.contrato_id === updated.contrato_id ? updated : c)));
+      if (selectedContrato?.contrato_id === updated.contrato_id) {
+        setSelectedContrato(updated);
+      }
+      toast({ title: 'Contrato atualizado', status: 'success' });
+    } catch (error) {
+      toast({ title: 'Erro ao atualizar contrato', status: 'error' });
+      throw error;
     }
   };
 
   const deleteContrato = async (contrato_id: number) => {
-    console.warn('Delete contrato não persistido no backend');
-    setPagamentos(pagamentos.filter((p: Pagamento) => p.contrato_id !== contrato_id));
-    setContratos(contratos.filter((c: Contrato) => c.contrato_id !== contrato_id));
-    
-    if (selectedContrato?.contrato_id === contrato_id) {
-      setSelectedContrato(null);
+    try {
+      await contratoService.delete(contrato_id);
+      setPagamentos(pagamentos.filter((p: Pagamento) => p.contrato_id !== contrato_id));
+      setContratos(contratos.filter((c: Contrato) => c.contrato_id !== contrato_id));
+      
+      if (selectedContrato?.contrato_id === contrato_id) {
+        setSelectedContrato(null);
+      }
+      toast({ title: 'Contrato excluído', status: 'success' });
+    } catch (error) {
+      toast({ title: 'Erro ao excluir contrato', status: 'error' });
+      throw error;
     }
   };
 

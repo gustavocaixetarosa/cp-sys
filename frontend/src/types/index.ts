@@ -20,6 +20,16 @@ export interface CreateContratoDTO {
   valorContrato: number;
 }
 
+export interface UpdateContratoDTO {
+  clienteId: number;
+  nomeContratante: string;
+  cpfContratante: string;
+  duracaoEmMeses: number;
+  dataInicioContrato: string; // yyyy-MM-dd
+  dataPrimeiraParcela?: string; // opcional no update
+  valorContrato: number;
+}
+
 export interface Pagamento {
   pagamento_id: number;
   contrato_id: number;
