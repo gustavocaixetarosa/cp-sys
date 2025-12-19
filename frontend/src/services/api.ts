@@ -118,6 +118,11 @@ export const clienteService = {
     return response.data;
   },
 
+  update: async (id: number, cliente: CreateClienteDTO): Promise<Cliente> => {
+    const response = await api.put<Cliente>(`/clientes/${id}`, cliente);
+    return response.data;
+  },
+
   delete: async (id: number): Promise<void> => {
     await api.delete(`/clientes/${id}`);
   }

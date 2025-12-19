@@ -126,10 +126,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateCliente = async (cliente: Cliente) => {
-    console.warn('Update cliente não persistido no backend (endpoint não documentado)');
-    setClientes(clientes.map((c) => (c.cliente_id === cliente.cliente_id ? cliente : c)));
-    if (selectedCliente?.cliente_id === cliente.cliente_id) {
-      setSelectedCliente(cliente);
+    try {
+      const updateDTO: CreateClienteDTO = {
+        nome: cliente.nome,
+        endereco: cliente.endereco,
+        telefone: cliente.telefone,
+        registro: cliente.registro,
+        banco: cliente.banco,
+        dataContrato: cliente.data_vencimento,
+      };
+      
+      const updated = await clienteService.update(cliente.cliente_id, updateDTO);
+      setClientes(clientes.map((c) => (c.cliente_id === updated.cliente_id ? updated : c)));
+      if (selectedCliente?.cliente_id === updated.cliente_id) {
+        setSelectedCliente(updated);
+      }
+      toast({ title: 'Cliente atualizado', status: 'success' });
+    } catch (error) {
+      toast({ title: 'Erro ao atualizar cliente', status: 'error' });
+      throw error;
     }
   };
 

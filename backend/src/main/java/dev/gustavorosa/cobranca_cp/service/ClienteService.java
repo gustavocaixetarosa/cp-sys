@@ -35,6 +35,22 @@ public class ClienteService {
         return cliente.get();
     }
 
+    public Cliente atualizarCliente(Long id, ClienteDTO clienteDTO) {
+        Cliente clienteExistente = recuperarPorId(id);
+        
+        // Atualiza os campos do cliente existente com os dados do DTO
+        clienteExistente.setNome(clienteDTO.nome());
+        clienteExistente.setEndereco(clienteDTO.endereco());
+        clienteExistente.setTelefone(clienteDTO.telefone());
+        clienteExistente.setRegistro(clienteDTO.registro());
+        clienteExistente.setBanco(clienteDTO.banco());
+        if (clienteDTO.dataContrato() != null) {
+            clienteExistente.setDataVencimentoContrato(clienteDTO.dataContrato());
+        }
+        
+        return clienteRepository.save(clienteExistente);
+    }
+
     public void excluirCliente(Long id) {
         recuperarPorId(id);
         clienteRepository.deleteById(id);
