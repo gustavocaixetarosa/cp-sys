@@ -42,4 +42,24 @@ public class ContratoService {
         if(contratoRecuperado.isEmpty()) throw new RuntimeException("Contrato não encontrado.");
         return contratoRecuperado.get();
     }
+
+    public Contrato atualizarContrato(Long id, ContratoDTO contratoDTO) {
+        Contrato contratoExistente = recuperarContratoPorId(id);
+        
+        // Atualiza os campos do contrato existente
+        contratoExistente.setNomeContratante(contratoDTO.nomeContratante());
+        contratoExistente.setCpfContratante(contratoDTO.cpfContratante());
+        contratoExistente.setDuracaoEmMeses(contratoDTO.duracaoEmMeses());
+        contratoExistente.setValorContrato(contratoDTO.valorContrato());
+        if (contratoDTO.dataInicioContrato() != null) {
+            contratoExistente.setDataInicioContrato(contratoDTO.dataInicioContrato());
+        }
+        
+        return contratoRepository.save(contratoExistente);
+    }
+
+    public void excluirContrato(Long id) {
+        recuperarContratoPorId(id);
+        contratoRepository.deleteById(id);
+    }
 }
