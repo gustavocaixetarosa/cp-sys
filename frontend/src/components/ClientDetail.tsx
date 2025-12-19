@@ -30,6 +30,7 @@ import ContractList from './ContractList';
 import ClientFormModal from './forms/ClientFormModal';
 import { useRef } from 'react';
 import { generateClientReport } from '../utils/reportGenerator';
+import type { Contrato, Pagamento } from '../types';
 
 const ClientDetail = () => {
   const { 
@@ -79,8 +80,8 @@ const ClientDetail = () => {
 
   const handleGenerateReport = () => {
     const contratos = getContratosByCliente(selectedCliente.cliente_id);
-    const contratoIds = contratos.map((c) => c.contrato_id);
-    const clientePagamentos = pagamentos.filter((p) => contratoIds.includes(p.contrato_id));
+    const contratoIds = contratos.map((c: Contrato) => c.contrato_id);
+    const clientePagamentos = pagamentos.filter((p: Pagamento) => contratoIds.includes(p.contrato_id));
     
     generateClientReport({
       cliente: selectedCliente,

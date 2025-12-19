@@ -24,7 +24,7 @@ import { FiFilter } from 'react-icons/fi';
 import { useApp, type PaymentFilterStatus } from '../contexts/AppContext';
 import { format, parseISO, isBefore, startOfDay } from 'date-fns';
 import PaymentFormModal from './forms/PaymentFormModal';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import type { Pagamento } from '../types';
 
 const PaymentList = () => {
@@ -100,11 +100,11 @@ const PaymentList = () => {
 
   // Calcular totais (usando todos os pagamentos, sem filtro)
   const totalPago = allPagamentos
-    .filter((p) => p.status === 'PAGO' || p.status === 'PAGO_COM_ATRASO')
-    .reduce((sum, p) => sum + p.valor, 0);
+    .filter((p: Pagamento) => p.status === 'PAGO' || p.status === 'PAGO_COM_ATRASO')
+    .reduce((sum: number, p: Pagamento) => sum + p.valor, 0);
   
   const totalAtrasado = allPagamentos
-    .filter((p) => {
+    .filter((p: Pagamento) => {
       if (p.status === 'ATRASADO') return true;
       if (p.status === 'EM_ABERTO') {
         const vencimento = parseISO(p.data_vencimento);
@@ -112,15 +112,15 @@ const PaymentList = () => {
       }
       return false;
     })
-    .reduce((sum, p) => sum + p.valor, 0);
+    .reduce((sum: number, p: Pagamento) => sum + p.valor, 0);
   
   const totalAberto = allPagamentos
-    .filter((p) => {
+    .filter((p: Pagamento) => {
       if (p.status !== 'EM_ABERTO') return false;
       const vencimento = parseISO(p.data_vencimento);
       return !isBefore(vencimento, startOfDay(hoje));
     })
-    .reduce((sum, p) => sum + p.valor, 0);
+    .reduce((sum: number, p: Pagamento) => sum + p.valor, 0);
 
   const handleStatusFilterChange = (status: PaymentFilterStatus) => {
     setPaymentFilters({ status });
@@ -169,7 +169,7 @@ const PaymentList = () => {
                 <Select
                   size="sm"
                   value={paymentFilters.status}
-                  onChange={(e) => handleStatusFilterChange(e.target.value as PaymentFilterStatus)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleStatusFilterChange(e.target.value as PaymentFilterStatus)}
                   bg="white"
                   borderRadius="lg"
                 >
@@ -190,7 +190,7 @@ const PaymentList = () => {
                     <Input
                       type="date"
                       value={paymentFilters.dateFrom || ''}
-                      onChange={(e) => setPaymentFilters({ dateFrom: e.target.value || null })}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPaymentFilters({ dateFrom: e.target.value || null })}
                       bg="white"
                       borderRadius="lg"
                       pl={8}
@@ -206,7 +206,7 @@ const PaymentList = () => {
                     <Input
                       type="date"
                       value={paymentFilters.dateTo || ''}
-                      onChange={(e) => setPaymentFilters({ dateTo: e.target.value || null })}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPaymentFilters({ dateTo: e.target.value || null })}
                       bg="white"
                       borderRadius="lg"
                       pl={8}
@@ -275,7 +275,7 @@ const PaymentList = () => {
           </Stack>
         ) : (
           <VStack spacing={3} align="stretch">
-            {pagamentos.map((pagamento) => {
+            {pagamentos.map((pagamento: Pagamento) => {
               const vencimento = parseISO(pagamento.data_vencimento);
               const statusOriginal = pagamento.status;
               

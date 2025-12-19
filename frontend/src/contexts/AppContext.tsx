@@ -158,7 +158,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       };
       
       const updated = await clienteService.update(cliente.cliente_id, updateDTO);
-      setClientes(clientes.map((c) => (c.cliente_id === updated.cliente_id ? updated : c)));
+      setClientes(clientes.map((c: Cliente) => (c.cliente_id === updated.cliente_id ? updated : c)));
       if (selectedCliente?.cliente_id === updated.cliente_id) {
         setSelectedCliente(updated);
       }
@@ -173,10 +173,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       await clienteService.delete(cliente_id);
       // Delete related contratos and pagamentos from state
-      const contratoIds = contratos.filter((c) => c.cliente_id === cliente_id).map((c) => c.contrato_id);
-      setPagamentos(pagamentos.filter((p) => !contratoIds.includes(p.contrato_id)));
-      setContratos(contratos.filter((c) => c.cliente_id !== cliente_id));
-      setClientes(clientes.filter((c) => c.cliente_id !== cliente_id));
+      const contratoIds = contratos.filter((c: Contrato) => c.cliente_id === cliente_id).map((c: Contrato) => c.contrato_id);
+      setPagamentos(pagamentos.filter((p: Pagamento) => !contratoIds.includes(p.contrato_id)));
+      setContratos(contratos.filter((c: Contrato) => c.cliente_id !== cliente_id));
+      setClientes(clientes.filter((c: Cliente) => c.cliente_id !== cliente_id));
       
       if (selectedCliente?.cliente_id === cliente_id) {
         setSelectedCliente(null);
@@ -213,7 +213,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateContrato = async (contrato: Contrato) => {
     console.warn('Update contrato não persistido no backend');
-    setContratos(contratos.map((c) => (c.contrato_id === contrato.contrato_id ? contrato : c)));
+    setContratos(contratos.map((c: Contrato) => (c.contrato_id === contrato.contrato_id ? contrato : c)));
     if (selectedContrato?.contrato_id === contrato.contrato_id) {
       setSelectedContrato(contrato);
     }
@@ -221,8 +221,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deleteContrato = async (contrato_id: number) => {
     console.warn('Delete contrato não persistido no backend');
-    setPagamentos(pagamentos.filter((p) => p.contrato_id !== contrato_id));
-    setContratos(contratos.filter((c) => c.contrato_id !== contrato_id));
+    setPagamentos(pagamentos.filter((p: Pagamento) => p.contrato_id !== contrato_id));
+    setContratos(contratos.filter((c: Contrato) => c.contrato_id !== contrato_id));
     
     if (selectedContrato?.contrato_id === contrato_id) {
       setSelectedContrato(null);
@@ -234,7 +234,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const getContratosByCliente = (cliente_id: number): Contrato[] => {
-    return contratos.filter((c) => c.cliente_id === cliente_id);
+    return contratos.filter((c: Contrato) => c.cliente_id === cliente_id);
   };
 
   // Pagamento CRUD
@@ -256,7 +256,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       };
       
       const updated = await pagamentoService.update(pagamento.pagamento_id, updateDTO);
-      setPagamentos(pagamentos.map((p) => (p.pagamento_id === updated.pagamento_id ? updated : p)));
+      setPagamentos(pagamentos.map((p: Pagamento) => (p.pagamento_id === updated.pagamento_id ? updated : p)));
       toast({ title: 'Pagamento atualizado', status: 'success' });
     } catch (error) {
       toast({ title: 'Erro ao atualizar pagamento', status: 'error' });
@@ -266,19 +266,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deletePagamento = async (pagamento_id: number) => {
     console.warn('Delete pagamento não persistido no backend');
-    setPagamentos(pagamentos.filter((p) => p.pagamento_id !== pagamento_id));
+    setPagamentos(pagamentos.filter((p: Pagamento) => p.pagamento_id !== pagamento_id));
   };
 
   const getPagamentosByContrato = (contrato_id: number): Pagamento[] => {
-    return pagamentos.filter((p) => p.contrato_id === contrato_id).sort((a, b) => a.numero_parcela - b.numero_parcela);
+    return pagamentos.filter((p: Pagamento) => p.contrato_id === contrato_id).sort((a: Pagamento, b: Pagamento) => a.numero_parcela - b.numero_parcela);
   };
 
   const getFilteredPagamentosByContrato = (contrato_id: number): Pagamento[] => {
-    let filtered = pagamentos.filter((p) => p.contrato_id === contrato_id);
+    let filtered = pagamentos.filter((p: Pagamento) => p.contrato_id === contrato_id);
 
     // Filtro por status
     if (paymentFilters.status !== 'TODOS') {
-      filtered = filtered.filter((p) => {
+      filtered = filtered.filter((p: Pagamento) => {
         // Calcular status real considerando atrasos não atualizados
         const vencimento = parseISO(p.data_vencimento);
         const hoje = new Date();
@@ -291,7 +291,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Filtro por data de vencimento (de)
     if (paymentFilters.dateFrom) {
       const dateFrom = startOfDay(parseISO(paymentFilters.dateFrom));
-      filtered = filtered.filter((p) => {
+      filtered = filtered.filter((p: Pagamento) => {
         const vencimento = parseISO(p.data_vencimento);
         return !isBefore(vencimento, dateFrom);
       });
@@ -300,18 +300,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Filtro por data de vencimento (até)
     if (paymentFilters.dateTo) {
       const dateTo = endOfDay(parseISO(paymentFilters.dateTo));
-      filtered = filtered.filter((p) => {
+      filtered = filtered.filter((p: Pagamento) => {
         const vencimento = parseISO(p.data_vencimento);
         return !isAfter(vencimento, dateTo);
       });
     }
 
-    return filtered.sort((a, b) => a.numero_parcela - b.numero_parcela);
+    return filtered.sort((a: Pagamento, b: Pagamento) => a.numero_parcela - b.numero_parcela);
   };
 
   // Payment Filters
   const setPaymentFilters = (filters: Partial<PaymentFilters>) => {
-    setPaymentFiltersState((prev) => ({ ...prev, ...filters }));
+    setPaymentFiltersState((prev: PaymentFilters) => ({ ...prev, ...filters }));
   };
 
   const clearPaymentFilters = () => {
@@ -323,7 +323,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const marcarPagamentoComoPago = async (pagamento_id: number, data_pagamento: string) => {
-    const pagamento = pagamentos.find((p) => p.pagamento_id === pagamento_id);
+    const pagamento = pagamentos.find((p: Pagamento) => p.pagamento_id === pagamento_id);
     if (!pagamento) return;
 
     const vencimento = parseISO(pagamento.data_vencimento);
@@ -341,7 +341,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       };
       
       const updated = await pagamentoService.update(pagamento_id, updateDTO);
-      setPagamentos(pagamentos.map((p) => (p.pagamento_id === updated.pagamento_id ? updated : p)));
+      setPagamentos(pagamentos.map((p: Pagamento) => (p.pagamento_id === updated.pagamento_id ? updated : p)));
       toast({ title: 'Pagamento registrado', status: 'success' });
     } catch (error) {
       toast({ title: 'Erro ao registrar pagamento', status: 'error' });
@@ -354,7 +354,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const term = searchTerm.toLowerCase();
     return clientes.filter(
-      (c) =>
+      (c: Cliente) =>
         c.nome.toLowerCase().includes(term) ||
         c.registro.toLowerCase().includes(term) ||
         c.telefone.toLowerCase().includes(term)
@@ -363,21 +363,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Statistics
   const getTotalReceber = (cliente_id: number): number => {
-    const clienteContratos = contratos.filter((c) => c.cliente_id === cliente_id);
-    const contratoIds = clienteContratos.map((c) => c.contrato_id);
+    const clienteContratos = contratos.filter((c: Contrato) => c.cliente_id === cliente_id);
+    const contratoIds = clienteContratos.map((c: Contrato) => c.contrato_id);
     
     return pagamentos
-      .filter((p) => contratoIds.includes(p.contrato_id) && p.status !== 'PAGO' && p.status !== 'PAGO_COM_ATRASO')
-      .reduce((sum, p) => sum + p.valor, 0);
+      .filter((p: Pagamento) => contratoIds.includes(p.contrato_id) && p.status !== 'PAGO' && p.status !== 'PAGO_COM_ATRASO')
+      .reduce((sum: number, p: Pagamento) => sum + p.valor, 0);
   };
 
   const getTotalAtrasado = (cliente_id: number): number => {
-    const clienteContratos = contratos.filter((c) => c.cliente_id === cliente_id);
-    const contratoIds = clienteContratos.map((c) => c.contrato_id);
+    const clienteContratos = contratos.filter((c: Contrato) => c.cliente_id === cliente_id);
+    const contratoIds = clienteContratos.map((c: Contrato) => c.contrato_id);
     const hoje = new Date();
     
     return pagamentos
-      .filter((p) => {
+      .filter((p: Pagamento) => {
         if (!contratoIds.includes(p.contrato_id)) return false;
         // Considerar tanto status ATRASADO quanto EM_ABERTO com vencimento passado
         if (p.status === 'ATRASADO') return true;
@@ -387,26 +387,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         return false;
       })
-      .reduce((sum, p) => sum + p.valor, 0);
+      .reduce((sum: number, p: Pagamento) => sum + p.valor, 0);
   };
 
   const getClientesComAtrasados = (): Cliente[] => {
     const hoje = new Date();
     const clienteIdsComAtrasados = new Set<number>();
 
-    pagamentos.forEach((p) => {
+    pagamentos.forEach((p: Pagamento) => {
       const isAtrasado = p.status === 'ATRASADO' || 
         (p.status === 'EM_ABERTO' && isBefore(parseISO(p.data_vencimento), startOfDay(hoje)));
       
       if (isAtrasado) {
-        const contrato = contratos.find((c) => c.contrato_id === p.contrato_id);
+        const contrato = contratos.find((c: Contrato) => c.contrato_id === p.contrato_id);
         if (contrato) {
           clienteIdsComAtrasados.add(contrato.cliente_id);
         }
       }
     });
 
-    return clientes.filter((c) => clienteIdsComAtrasados.has(c.cliente_id));
+    return clientes.filter((c: Cliente) => clienteIdsComAtrasados.has(c.cliente_id));
   };
 
   const value: AppContextType = {
