@@ -5,6 +5,7 @@ import dev.gustavorosa.cobranca_cp.model.Cliente;
 import dev.gustavorosa.cobranca_cp.model.Contrato;
 import dev.gustavorosa.cobranca_cp.model.Pagamento;
 import dev.gustavorosa.cobranca_cp.repository.ContratoRepository;
+import dev.gustavorosa.cobranca_cp.util.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +27,7 @@ public class ContratoService {
     public Contrato registrarContrato(ContratoDTO contratoDTO) {
         Cliente cliente = clienteService.recuperarPorId(contratoDTO.clienteId());
         Contrato novoContrato = contratoDTO.toModel(cliente);
+        novoContrato.setNomeContratante(StringUtils.toTitleCase(novoContrato.getNomeContratante()));
         List<Pagamento> novosPagamentos = pagamentoService.gerarPagamentosAutomaticos(novoContrato, contratoDTO.dataPrimeiraParcela());
         novoContrato.setPagamentos(novosPagamentos);
         return contratoRepository.save(novoContrato);
@@ -47,7 +49,7 @@ public class ContratoService {
         Contrato contratoExistente = recuperarContratoPorId(id);
         
         // Atualiza os campos do contrato existente
-        contratoExistente.setNomeContratante(contratoDTO.nomeContratante());
+        contratoExistente.setNomeContratante(StringUtils.toTitleCase(contratoDTO.nomeContratante()));
         contratoExistente.setCpfContratante(contratoDTO.cpfContratante());
         contratoExistente.setDuracaoEmMeses(contratoDTO.duracaoEmMeses());
         contratoExistente.setValorContrato(contratoDTO.valorContrato());
