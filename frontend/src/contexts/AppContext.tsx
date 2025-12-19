@@ -170,8 +170,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteCliente = async (cliente_id: number) => {
+    if (!cliente_id || isNaN(Number(cliente_id))) {
+      toast({ title: 'ID do cliente inválido', status: 'error' });
+      return;
+    }
     try {
-      await clienteService.delete(cliente_id);
+      await clienteService.delete(Number(cliente_id));
       // Delete related contratos and pagamentos from state
       const contratoIds = contratos.filter((c: Contrato) => c.cliente_id === cliente_id).map((c: Contrato) => c.contrato_id);
       setPagamentos(pagamentos.filter((p: Pagamento) => !contratoIds.includes(p.contrato_id)));
@@ -235,8 +239,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteContrato = async (contrato_id: number) => {
+    if (!contrato_id || isNaN(Number(contrato_id))) {
+      toast({ title: 'ID do contrato inválido', status: 'error' });
+      return;
+    }
     try {
-      await contratoService.delete(contrato_id);
+      await contratoService.delete(Number(contrato_id));
       setPagamentos(pagamentos.filter((p: Pagamento) => p.contrato_id !== contrato_id));
       setContratos(contratos.filter((c: Contrato) => c.contrato_id !== contrato_id));
       

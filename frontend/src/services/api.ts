@@ -109,7 +109,7 @@ export const clienteService = {
   },
   
   getById: async (id: number): Promise<Cliente> => {
-    const response = await api.get<Cliente>(`/clientes/${id}`);
+    const response = await api.get<Cliente>(`/clientes/${Number(id)}`);
     return response.data;
   },
 
@@ -119,12 +119,12 @@ export const clienteService = {
   },
 
   update: async (id: number, cliente: CreateClienteDTO): Promise<Cliente> => {
-    const response = await api.put<Cliente>(`/clientes/${id}`, cliente);
+    const response = await api.put<Cliente>(`/clientes/${Number(id)}`, cliente);
     return response.data;
   },
 
   delete: async (id: number): Promise<void> => {
-    await api.delete(`/clientes/${id}`);
+    await api.delete(`/clientes/${Number(id)}`);
   }
 };
 
@@ -135,7 +135,7 @@ export const contratoService = {
   },
 
   getById: async (id: number): Promise<Contrato> => {
-    const response = await api.get<Contrato>(`/contratos/${id}`);
+    const response = await api.get<Contrato>(`/contratos/${Number(id)}`);
     return response.data;
   },
 
@@ -145,12 +145,12 @@ export const contratoService = {
   },
 
   update: async (id: number, contrato: UpdateContratoDTO): Promise<Contrato> => {
-    const response = await api.put<Contrato>(`/contratos/${id}`, contrato);
+    const response = await api.put<Contrato>(`/contratos/${Number(id)}`, contrato);
     return response.data;
   },
 
   delete: async (id: number): Promise<void> => {
-    await api.delete(`/contratos/${id}`);
+    await api.delete(`/contratos/${Number(id)}`);
   }
 };
 
@@ -161,7 +161,7 @@ export const pagamentoService = {
   },
 
   update: async (id: number, pagamento: UpdatePagamentoDTO): Promise<Pagamento> => {
-    const response = await api.put<Pagamento>(`/pagamentos/${id}`, pagamento);
+    const response = await api.put<Pagamento>(`/pagamentos/${Number(id)}`, pagamento);
     return response.data;
   }
 };
