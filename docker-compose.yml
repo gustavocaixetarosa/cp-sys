@@ -30,7 +30,7 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO}
       APP_FRONTEND_URL: ${APP_FRONTEND_URL}
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"  # Apenas localhost - Nginx faz proxy reverso
     depends_on:
       postgres:
         condition: service_healthy
@@ -46,7 +46,7 @@ services:
         VITE_API_URL: ${VITE_API_URL}
     container_name: cobranca-frontend
     ports:
-      - "80:80"
+      - "127.0.0.1:8081:80"  # Porta interna diferente - Nginx faz proxy reverso
     depends_on:
       - backend
     networks:
