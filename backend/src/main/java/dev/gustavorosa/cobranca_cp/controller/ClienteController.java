@@ -23,7 +23,7 @@ public class ClienteController {
     private ClienteService clienteService;
 
     @PostMapping
-    public ResponseEntity<ClienteDTO> registraCliente(@RequestBody ClienteDTO clienteDTO){
+    public ResponseEntity<ClienteDetailsDTO> registraCliente(@RequestBody ClienteDTO clienteDTO){
         log.info("Entry [ClienteController.registraCliente] - Registrando cliente: {}", clienteDTO);
         Cliente novoCliente = clienteService.registraCliente(clienteDTO);
 
@@ -34,7 +34,7 @@ public class ClienteController {
                 .toUri();
 
         log.info("Exit [ClienteController.registraCliente] - Cliente registrado com sucesso: {}", novoCliente);
-        return ResponseEntity.created(localNovoCliente).body(new ClienteDTO(novoCliente));
+        return ResponseEntity.created(localNovoCliente).body(new ClienteDetailsDTO(novoCliente));
     }
 
     @GetMapping
