@@ -1,8 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useToast } from '@chakra-ui/react';
-import type { Cliente, Contrato, Pagamento, CreateClienteDTO, CreateContratoDTO, UpdatePagamentoDTO } from '../types';
+import type { Cliente, Contrato, Pagamento, CreateClienteDTO, CreateContratoDTO, UpdatePagamentoDTO, StatusPagamento } from '../types';
 import { clienteService, contratoService, pagamentoService } from '../services/api';
-import { format, parseISO, isBefore } from 'date-fns';
+import { format, parseISO, isBefore, isAfter, startOfDay, endOfDay } from 'date-fns';
+
+export type PaymentFilterStatus = StatusPagamento | 'TODOS';
+
+export interface PaymentFilters {
+  status: PaymentFilterStatus;
+  dateFrom: string | null;
+  dateTo: string | null;
+}
 
 interface AppContextType {
   // State
@@ -13,6 +21,7 @@ interface AppContextType {
   selectedContrato: Contrato | null;
   searchTerm: string;
   isLoading: boolean;
+  paymentFilters: PaymentFilters;
 
   // Cliente CRUD
   addCliente: (cliente: CreateClienteDTO) => Promise<void>;
@@ -32,18 +41,29 @@ interface AppContextType {
   updatePagamento: (pagamento: Pagamento) => Promise<void>;
   deletePagamento: (pagamento_id: number) => Promise<void>;
   getPagamentosByContrato: (contrato_id: number) => Pagamento[];
+  getFilteredPagamentosByContrato: (contrato_id: number) => Pagamento[];
   marcarPagamentoComoPago: (pagamento_id: number, data_pagamento: string) => Promise<void>;
 
   // Search & Filter
   setSearchTerm: (term: string) => void;
   getFilteredClientes: () => Cliente[];
+  setPaymentFilters: (filters: Partial<PaymentFilters>) => void;
+  clearPaymentFilters: () => void;
+  filterByAtrasados: () => void;
 
   // Statistics
   getTotalReceber: (cliente_id: number) => number;
   getTotalAtrasado: (cliente_id: number) => number;
+  getClientesComAtrasados: () => Cliente[];
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+const defaultPaymentFilters: PaymentFilters = {
+  status: 'TODOS',
+  dateFrom: null,
+  dateTo: null,
+};
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -53,6 +73,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [selectedContrato, setSelectedContrato] = useState<Contrato | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [paymentFilters, setPaymentFiltersState] = useState<PaymentFilters>(defaultPaymentFilters);
   const toast = useToast();
 
   // Load initial data
@@ -252,6 +273,55 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return pagamentos.filter((p) => p.contrato_id === contrato_id).sort((a, b) => a.numero_parcela - b.numero_parcela);
   };
 
+  const getFilteredPagamentosByContrato = (contrato_id: number): Pagamento[] => {
+    let filtered = pagamentos.filter((p) => p.contrato_id === contrato_id);
+
+    // Filtro por status
+    if (paymentFilters.status !== 'TODOS') {
+      filtered = filtered.filter((p) => {
+        // Calcular status real considerando atrasos não atualizados
+        const vencimento = parseISO(p.data_vencimento);
+        const hoje = new Date();
+        const estaAtrasadoCalculado = p.status === 'EM_ABERTO' && isBefore(vencimento, startOfDay(hoje));
+        const statusReal = estaAtrasadoCalculado ? 'ATRASADO' : p.status;
+        return statusReal === paymentFilters.status;
+      });
+    }
+
+    // Filtro por data de vencimento (de)
+    if (paymentFilters.dateFrom) {
+      const dateFrom = startOfDay(parseISO(paymentFilters.dateFrom));
+      filtered = filtered.filter((p) => {
+        const vencimento = parseISO(p.data_vencimento);
+        return !isBefore(vencimento, dateFrom);
+      });
+    }
+
+    // Filtro por data de vencimento (até)
+    if (paymentFilters.dateTo) {
+      const dateTo = endOfDay(parseISO(paymentFilters.dateTo));
+      filtered = filtered.filter((p) => {
+        const vencimento = parseISO(p.data_vencimento);
+        return !isAfter(vencimento, dateTo);
+      });
+    }
+
+    return filtered.sort((a, b) => a.numero_parcela - b.numero_parcela);
+  };
+
+  // Payment Filters
+  const setPaymentFilters = (filters: Partial<PaymentFilters>) => {
+    setPaymentFiltersState((prev) => ({ ...prev, ...filters }));
+  };
+
+  const clearPaymentFilters = () => {
+    setPaymentFiltersState(defaultPaymentFilters);
+  };
+
+  const filterByAtrasados = () => {
+    setPaymentFiltersState({ ...defaultPaymentFilters, status: 'ATRASADO' });
+  };
+
   const marcarPagamentoComoPago = async (pagamento_id: number, data_pagamento: string) => {
     const pagamento = pagamentos.find((p) => p.pagamento_id === pagamento_id);
     if (!pagamento) return;
@@ -304,10 +374,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const getTotalAtrasado = (cliente_id: number): number => {
     const clienteContratos = contratos.filter((c) => c.cliente_id === cliente_id);
     const contratoIds = clienteContratos.map((c) => c.contrato_id);
+    const hoje = new Date();
     
     return pagamentos
-      .filter((p) => contratoIds.includes(p.contrato_id) && p.status === 'ATRASADO')
+      .filter((p) => {
+        if (!contratoIds.includes(p.contrato_id)) return false;
+        // Considerar tanto status ATRASADO quanto EM_ABERTO com vencimento passado
+        if (p.status === 'ATRASADO') return true;
+        if (p.status === 'EM_ABERTO') {
+          const vencimento = parseISO(p.data_vencimento);
+          return isBefore(vencimento, startOfDay(hoje));
+        }
+        return false;
+      })
       .reduce((sum, p) => sum + p.valor, 0);
+  };
+
+  const getClientesComAtrasados = (): Cliente[] => {
+    const hoje = new Date();
+    const clienteIdsComAtrasados = new Set<number>();
+
+    pagamentos.forEach((p) => {
+      const isAtrasado = p.status === 'ATRASADO' || 
+        (p.status === 'EM_ABERTO' && isBefore(parseISO(p.data_vencimento), startOfDay(hoje)));
+      
+      if (isAtrasado) {
+        const contrato = contratos.find((c) => c.contrato_id === p.contrato_id);
+        if (contrato) {
+          clienteIdsComAtrasados.add(contrato.cliente_id);
+        }
+      }
+    });
+
+    return clientes.filter((c) => clienteIdsComAtrasados.has(c.cliente_id));
   };
 
   const value: AppContextType = {
@@ -318,6 +417,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     selectedContrato,
     searchTerm,
     isLoading,
+    paymentFilters,
     addCliente,
     updateCliente,
     deleteCliente,
@@ -331,11 +431,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updatePagamento,
     deletePagamento,
     getPagamentosByContrato,
+    getFilteredPagamentosByContrato,
     marcarPagamentoComoPago,
     setSearchTerm,
     getFilteredClientes,
+    setPaymentFilters,
+    clearPaymentFilters,
+    filterByAtrasados,
     getTotalReceber,
     getTotalAtrasado,
+    getClientesComAtrasados,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
