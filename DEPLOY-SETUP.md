@@ -111,7 +111,7 @@ Crie os seguintes secrets:
 | `POSTGRES_PASSWORD` | Senha forte do PostgreSQL | `Str0ng_P@ssw0rd_2024!` |
 | `JWT_SECRET` | String aleatória de 32+ chars | `meu-super-secret-jwt-key-12345678` |
 | `APP_FRONTEND_URL` | URL completa do frontend | `https://app.seudominio.com` ou `http://192.168.1.100` |
-| `VITE_API_URL` | URL completa da API | `https://api.seudominio.com` ou `http://192.168.1.100:8080` |
+| `VITE_API_URL` | URL base do domínio (sem /api) | `https://seudominio.com` ou `http://192.168.1.100` |
 
 ### 2.3. Secrets Opcionais (Notificações)
 
