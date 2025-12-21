@@ -86,7 +86,15 @@ jobs:
             
             # Wait for containers to be healthy
             echo "⏳ Waiting for containers to be healthy..."
-            sleep 10
+            sleep 15
+            
+            # Show container status
+            echo "📊 Container status:"
+            docker compose ps
+            
+            # Show backend logs immediately
+            echo "📋 Backend logs:"
+            docker compose logs --tail=50 backend
             
             # Check container health
             echo "🔍 Checking container health..."
