@@ -211,6 +211,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSelectedContrato(contrato);
   };
 
+  // Helper function to check if a payment is overdue
+  // Checks both explicit ATRASADO status and EM_ABERTO payments past due date
+  const pagamentoEstaAtrasado = (pagamento: Pagamento): boolean => {
+    if (pagamento.status === 'ATRASADO') {
+      return true;
+    }
+    if (pagamento.status === 'EM_ABERTO') {
+      const vencimento = parseISO(pagamento.data_vencimento);
+      const hoje = new Date();
+      return isBefore(vencimento, hoje);
+    }
+    return false;
+  };
+
   const getContratosByCliente = (cliente_id: number): Contrato[] => {
     let filteredContratos = contratos.filter((c) => c.cliente_id === cliente_id);
 
@@ -220,8 +234,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const contratoPagamentos = pagamentos.filter((p) => p.contrato_id === contrato.contrato_id);
         
         if (filters.statusPagamento === 'ATRASADO') {
-          // Contract has at least one overdue payment
-          return contratoPagamentos.some((p) => p.status === 'ATRASADO');
+          // Contract has at least one overdue payment (ATRASADO or EM_ABERTO past due)
+          return contratoPagamentos.some((p) => pagamentoEstaAtrasado(p));
         } else {
           // Contract has at least one payment with the specified status
           return contratoPagamentos.some((p) => p.status === filters.statusPagamento);
@@ -347,7 +361,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Check if contract has overdue payments
   const contratoTemPagamentoAtrasado = (contrato_id: number): boolean => {
-    return pagamentos.some((p) => p.contrato_id === contrato_id && p.status === 'ATRASADO');
+    return pagamentos.some((p) => p.contrato_id === contrato_id && pagamentoEstaAtrasado(p));
   };
 
   // Statistics
@@ -365,7 +379,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const contratoIds = clienteContratos.map((c) => c.contrato_id);
     
     return pagamentos
-      .filter((p) => contratoIds.includes(p.contrato_id) && p.status === 'ATRASADO')
+      .filter((p) => contratoIds.includes(p.contrato_id) && pagamentoEstaAtrasado(p))
       .reduce((sum, p) => sum + p.valor, 0);
   };
 
