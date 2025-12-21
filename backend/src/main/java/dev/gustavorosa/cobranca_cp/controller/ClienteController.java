@@ -23,7 +23,7 @@ public class ClienteController {
     private ClienteService clienteService;
 
     @PostMapping
-    public ResponseEntity<ClienteDTO> registraCliente(@RequestBody ClienteDTO clienteDTO){
+    public ResponseEntity<ClienteDetailsDTO> registraCliente(@RequestBody ClienteDTO clienteDTO){
         log.info("Entry [ClienteController.registraCliente] - Registrando cliente: {}", clienteDTO);
         Cliente novoCliente = clienteService.registraCliente(clienteDTO);
 
@@ -34,7 +34,7 @@ public class ClienteController {
                 .toUri();
 
         log.info("Exit [ClienteController.registraCliente] - Cliente registrado com sucesso: {}", novoCliente);
-        return ResponseEntity.created(localNovoCliente).body(new ClienteDTO(novoCliente));
+        return ResponseEntity.created(localNovoCliente).body(new ClienteDetailsDTO(novoCliente));
     }
 
     @GetMapping
@@ -54,10 +54,19 @@ public class ClienteController {
         return ResponseEntity.ok(new ClienteDetailsDTO(clienteRecuperado));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<ClienteDetailsDTO> atualizarCliente(@PathVariable Long id, @RequestBody ClienteDTO clienteDTO){
+        log.info("Entry [ClienteController.atualizarCliente] - Atualizando cliente com id: {}, dados: {}", id, clienteDTO);
+        Cliente clienteAtualizado = clienteService.atualizarCliente(id, clienteDTO);
+        log.info("Exit [ClienteController.atualizarCliente] - Cliente atualizado com sucesso: {}", clienteAtualizado);
+        return ResponseEntity.ok(new ClienteDetailsDTO(clienteAtualizado));
+    }
+
     @DeleteMapping("/{id}")
-    public void excluirCliente(@PathVariable Long id){
+    public ResponseEntity<Void> excluirCliente(@PathVariable Long id){
         log.info("Entry [ClienteController.excluirCliente] - Excluindo cliente por id: {}", id);
         clienteService.excluirCliente(id);
         log.info("Exit [ClienteController.excluirCliente] - Cliente excluido com sucesso: {}", id);
+        return ResponseEntity.noContent().build();
     }
 }

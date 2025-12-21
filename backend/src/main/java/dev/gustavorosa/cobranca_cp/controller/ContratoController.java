@@ -45,4 +45,16 @@ public class ContratoController {
         ContratoDetailsDTO contratoResposta = new ContratoDetailsDTO(contrato);
         return ResponseEntity.ok(contratoResposta);
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ContratoDetailsDTO> atualizarContrato(@PathVariable Long id, @RequestBody ContratoDTO contratoDTO){
+        Contrato contratoAtualizado = contratoService.atualizarContrato(id, contratoDTO);
+        return ResponseEntity.ok(new ContratoDetailsDTO(contratoAtualizado));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> excluirContrato(@PathVariable Long id){
+        contratoService.excluirContrato(id);
+        return ResponseEntity.noContent().build();
+    }
 }

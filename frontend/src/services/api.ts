@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Cliente, Contrato, Pagamento, CreateClienteDTO, CreateContratoDTO, UpdatePagamentoDTO } from '../types';
+import type { Cliente, Contrato, Pagamento, CreateClienteDTO, CreateContratoDTO, UpdateContratoDTO, UpdatePagamentoDTO } from '../types';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
@@ -109,7 +109,7 @@ export const clienteService = {
   },
   
   getById: async (id: number): Promise<Cliente> => {
-    const response = await api.get<Cliente>(`/clientes/${id}`);
+    const response = await api.get<Cliente>(`/clientes/${Number(id)}`);
     return response.data;
   },
 
@@ -118,8 +118,13 @@ export const clienteService = {
     return response.data;
   },
 
+  update: async (id: number, cliente: CreateClienteDTO): Promise<Cliente> => {
+    const response = await api.put<Cliente>(`/clientes/${Number(id)}`, cliente);
+    return response.data;
+  },
+
   delete: async (id: number): Promise<void> => {
-    await api.delete(`/clientes/${id}`);
+    await api.delete(`/clientes/${Number(id)}`);
   }
 };
 
@@ -130,13 +135,22 @@ export const contratoService = {
   },
 
   getById: async (id: number): Promise<Contrato> => {
-    const response = await api.get<Contrato>(`/contratos/${id}`);
+    const response = await api.get<Contrato>(`/contratos/${Number(id)}`);
     return response.data;
   },
 
   create: async (contrato: CreateContratoDTO): Promise<Contrato> => {
     const response = await api.post<Contrato>('/contratos', contrato);
     return response.data;
+  },
+
+  update: async (id: number, contrato: UpdateContratoDTO): Promise<Contrato> => {
+    const response = await api.put<Contrato>(`/contratos/${Number(id)}`, contrato);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/contratos/${Number(id)}`);
   }
 };
 
@@ -147,7 +161,7 @@ export const pagamentoService = {
   },
 
   update: async (id: number, pagamento: UpdatePagamentoDTO): Promise<Pagamento> => {
-    const response = await api.put<Pagamento>(`/pagamentos/${id}`, pagamento);
+    const response = await api.put<Pagamento>(`/pagamentos/${Number(id)}`, pagamento);
     return response.data;
   }
 };

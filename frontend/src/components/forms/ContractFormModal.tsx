@@ -200,7 +200,7 @@ const ContractFormModal = ({ isOpen, onClose, contrato }: ContractFormModalProps
 
               <SimpleGrid columns={2} spacing={5} w="100%">
                 <FormControl isInvalid={!!errors.cpf_contratante}>
-                  <FormLabel fontSize="sm" color="gray.600" fontWeight="medium">CPF</FormLabel>
+                  <FormLabel fontSize="sm" color="gray.600" fontWeight="medium">CPF/CNPJ</FormLabel>
                   <Input
                     {...register('cpf_contratante', {
                       required: 'CPF é obrigatório',

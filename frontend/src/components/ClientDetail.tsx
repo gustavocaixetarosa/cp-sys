@@ -21,20 +21,34 @@ import {
   StatLabel,
   StatNumber,
   StatHelpText,
+  Badge,
+  Tooltip,
 } from '@chakra-ui/react';
 import { EditIcon, DeleteIcon, DownloadIcon, TimeIcon, WarningIcon } from '@chakra-ui/icons';
 import { useApp } from '../contexts/AppContext';
 import ContractList from './ContractList';
 import ClientFormModal from './forms/ClientFormModal';
-import FilterPanel from './FilterPanel';
 import { useRef } from 'react';
 import { generateClientReport } from '../utils/reportGenerator';
+import type { Contrato, Pagamento } from '../types';
 
 const ClientDetail = () => {
-  const { selectedCliente, deleteCliente, getTotalReceber, getTotalAtrasado, getContratosByCliente, pagamentos, setFilters } = useApp();
+  const { 
+    selectedCliente, 
+    deleteCliente, 
+    getTotalReceber, 
+    getTotalAtrasado, 
+    getContratosByCliente, 
+    pagamentos,
+    paymentFilters,
+    filterByAtrasados,
+    clearPaymentFilters,
+  } = useApp();
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
   const cancelRef = useRef<HTMLButtonElement>(null);
+  
+  const isFilteringAtrasados = paymentFilters.status === 'ATRASADO';
 
   if (!selectedCliente) {
     return (
@@ -66,8 +80,8 @@ const ClientDetail = () => {
 
   const handleGenerateReport = () => {
     const contratos = getContratosByCliente(selectedCliente.cliente_id);
-    const contratoIds = contratos.map((c) => c.contrato_id);
-    const clientePagamentos = pagamentos.filter((p) => contratoIds.includes(p.contrato_id));
+    const contratoIds = contratos.map((c: Contrato) => c.contrato_id);
+    const clientePagamentos = pagamentos.filter((p: Pagamento) => contratoIds.includes(p.contrato_id));
     
     generateClientReport({
       cliente: selectedCliente,
@@ -154,27 +168,53 @@ const ClientDetail = () => {
               </StatHelpText>
             </Stat>
 
-            <Stat bg="red.50" p={4} borderRadius="xl">
-              <StatLabel color="red.600" fontWeight="medium">Total Atrasado</StatLabel>
-              <StatNumber color="red.700" fontSize="2xl">
-                R$ {totalAtrasado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </StatNumber>
+            <Tooltip label={isFilteringAtrasados ? "Clique para limpar filtro" : "Clique para filtrar pagamentos atrasados"}>
+              <Stat 
+                bg={isFilteringAtrasados ? "red.100" : "red.50"} 
+                p={4} 
+                borderRadius="xl"
+                cursor={totalAtrasado > 0 ? "pointer" : "default"}
+                onClick={() => {
+                  if (totalAtrasado > 0) {
+                    if (isFilteringAtrasados) {
+                      clearPaymentFilters();
+                    } else {
+                      filterByAtrasados();
+                    }
+                  }
+                }}
+                _hover={totalAtrasado > 0 ? { bg: isFilteringAtrasados ? "red.200" : "red.100", transform: "scale(1.02)" } : {}}
+                transition="all 0.2s"
+                position="relative"
+                border={isFilteringAtrasados ? "2px solid" : "none"}
+                borderColor="red.400"
+              >
+                {isFilteringAtrasados && (
+                  <Badge 
+                    position="absolute" 
+                    top={2} 
+                    right={2} 
+                    colorScheme="red" 
+                    fontSize="2xs"
+                    borderRadius="full"
+                  >
+                    Filtro ativo
+                  </Badge>
+                )}
+                <StatLabel color="red.600" fontWeight="medium">Total Atrasado</StatLabel>
+                <StatNumber color="red.700" fontSize="2xl">
+                  R$ {totalAtrasado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </StatNumber>
                 {totalAtrasado > 0 && (
-                <StatHelpText color="red.600" mb={0} fontSize="xs">
-                  <HStack>
-                    <WarningIcon /> <Text>Requer atenção</Text>
-                  </HStack>
-                </StatHelpText>
-              )}
-              
-            </Stat>
+                  <StatHelpText color="red.600" mb={0} fontSize="xs">
+                    <HStack>
+                      <WarningIcon /> <Text>{isFilteringAtrasados ? "Clique para limpar" : "Clique para filtrar"}</Text>
+                    </HStack>
+                  </StatHelpText>
+                )}
+              </Stat>
+            </Tooltip>
           </SimpleGrid>
-        </Box>
-
-        {/* Filter Section */}
-        <Box bg="white" p={6} borderRadius="2xl" boxShadow="sm">
-          <Heading size="sm" color="gray.700" mb={4}>Filtros</Heading>
-          <FilterPanel onFilterChange={setFilters} />
         </Box>
 
         {/* Contracts Section */}

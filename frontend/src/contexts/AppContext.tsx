@@ -1,13 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useToast } from '@chakra-ui/react';
-import type { Cliente, Contrato, Pagamento, CreateClienteDTO, CreateContratoDTO, UpdatePagamentoDTO } from '../types';
+import type { Cliente, Contrato, Pagamento, CreateClienteDTO, CreateContratoDTO, UpdateContratoDTO, UpdatePagamentoDTO, StatusPagamento } from '../types';
 import { clienteService, contratoService, pagamentoService } from '../services/api';
-import { format, parseISO, isBefore, startOfMonth, endOfMonth, subMonths, startOfYear } from 'date-fns';
+import { format, parseISO, isBefore, isAfter, startOfDay, endOfDay } from 'date-fns';
 
-export interface FilterState {
-  statusPagamento: string;
-  statusContrato: string;
-  periodo: string;
+export type PaymentFilterStatus = StatusPagamento | 'TODOS';
+
+export interface PaymentFilters {
+  status: PaymentFilterStatus;
+  dateFrom: string | null;
+  dateTo: string | null;
 }
 
 interface AppContextType {
@@ -19,7 +21,7 @@ interface AppContextType {
   selectedContrato: Contrato | null;
   searchTerm: string;
   isLoading: boolean;
-  filters: FilterState;
+  paymentFilters: PaymentFilters;
 
   // Cliente CRUD
   addCliente: (cliente: CreateClienteDTO) => Promise<void>;
@@ -39,20 +41,30 @@ interface AppContextType {
   updatePagamento: (pagamento: Pagamento) => Promise<void>;
   deletePagamento: (pagamento_id: number) => Promise<void>;
   getPagamentosByContrato: (contrato_id: number) => Pagamento[];
+  getFilteredPagamentosByContrato: (contrato_id: number) => Pagamento[];
   marcarPagamentoComoPago: (pagamento_id: number, data_pagamento: string) => Promise<void>;
 
   // Search & Filter
   setSearchTerm: (term: string) => void;
   getFilteredClientes: () => Cliente[];
-  setFilters: (filters: FilterState) => void;
+  setPaymentFilters: (filters: Partial<PaymentFilters>) => void;
+  clearPaymentFilters: () => void;
+  filterByAtrasados: () => void;
   contratoTemPagamentoAtrasado: (contrato_id: number) => boolean;
 
   // Statistics
   getTotalReceber: (cliente_id: number) => number;
   getTotalAtrasado: (cliente_id: number) => number;
+  getClientesComAtrasados: () => Cliente[];
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+const defaultPaymentFilters: PaymentFilters = {
+  status: 'TODOS',
+  dateFrom: null,
+  dateTo: null,
+};
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -62,11 +74,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [selectedContrato, setSelectedContrato] = useState<Contrato | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState<FilterState>({
-    statusPagamento: 'todos',
-    statusContrato: 'todos',
-    periodo: 'todos',
-  });
+  const [paymentFilters, setPaymentFiltersState] = useState<PaymentFilters>(defaultPaymentFilters);
   const toast = useToast();
 
   // Load initial data
@@ -140,21 +148,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateCliente = async (cliente: Cliente) => {
-    console.warn('Update cliente não persistido no backend (endpoint não documentado)');
-    setClientes(clientes.map((c) => (c.cliente_id === cliente.cliente_id ? cliente : c)));
-    if (selectedCliente?.cliente_id === cliente.cliente_id) {
-      setSelectedCliente(cliente);
+    try {
+      const updateDTO: CreateClienteDTO = {
+        nome: cliente.nome,
+        endereco: cliente.endereco,
+        telefone: cliente.telefone,
+        registro: cliente.registro,
+        banco: cliente.banco,
+        dataContrato: cliente.data_vencimento,
+      };
+      
+      const updated = await clienteService.update(cliente.cliente_id, updateDTO);
+      setClientes(clientes.map((c: Cliente) => (c.cliente_id === updated.cliente_id ? updated : c)));
+      if (selectedCliente?.cliente_id === updated.cliente_id) {
+        setSelectedCliente(updated);
+      }
+      toast({ title: 'Cliente atualizado', status: 'success' });
+    } catch (error) {
+      toast({ title: 'Erro ao atualizar cliente', status: 'error' });
+      throw error;
     }
   };
 
   const deleteCliente = async (cliente_id: number) => {
+    if (!cliente_id || isNaN(Number(cliente_id))) {
+      toast({ title: 'ID do cliente inválido', status: 'error' });
+      return;
+    }
     try {
-      await clienteService.delete(cliente_id);
+      await clienteService.delete(Number(cliente_id));
       // Delete related contratos and pagamentos from state
-      const contratoIds = contratos.filter((c) => c.cliente_id === cliente_id).map((c) => c.contrato_id);
-      setPagamentos(pagamentos.filter((p) => !contratoIds.includes(p.contrato_id)));
-      setContratos(contratos.filter((c) => c.cliente_id !== cliente_id));
-      setClientes(clientes.filter((c) => c.cliente_id !== cliente_id));
+      const contratoIds = contratos.filter((c: Contrato) => c.cliente_id === cliente_id).map((c: Contrato) => c.contrato_id);
+      setPagamentos(pagamentos.filter((p: Pagamento) => !contratoIds.includes(p.contrato_id)));
+      setContratos(contratos.filter((c: Contrato) => c.cliente_id !== cliente_id));
+      setClientes(clientes.filter((c: Cliente) => c.cliente_id !== cliente_id));
       
       if (selectedCliente?.cliente_id === cliente_id) {
         setSelectedCliente(null);
@@ -190,20 +217,45 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateContrato = async (contrato: Contrato) => {
-    console.warn('Update contrato não persistido no backend');
-    setContratos(contratos.map((c) => (c.contrato_id === contrato.contrato_id ? contrato : c)));
-    if (selectedContrato?.contrato_id === contrato.contrato_id) {
-      setSelectedContrato(contrato);
+    try {
+      const updateDTO: UpdateContratoDTO = {
+        clienteId: contrato.cliente_id,
+        nomeContratante: contrato.nome_contratante,
+        cpfContratante: contrato.cpf_contratante,
+        duracaoEmMeses: contrato.duracao_em_meses,
+        dataInicioContrato: contrato.data,
+        valorContrato: contrato.valor_contrato,
+      };
+      
+      const updated = await contratoService.update(contrato.contrato_id, updateDTO);
+      setContratos(contratos.map((c: Contrato) => (c.contrato_id === updated.contrato_id ? updated : c)));
+      if (selectedContrato?.contrato_id === updated.contrato_id) {
+        setSelectedContrato(updated);
+      }
+      toast({ title: 'Contrato atualizado', status: 'success' });
+    } catch (error) {
+      toast({ title: 'Erro ao atualizar contrato', status: 'error' });
+      throw error;
     }
   };
 
   const deleteContrato = async (contrato_id: number) => {
-    console.warn('Delete contrato não persistido no backend');
-    setPagamentos(pagamentos.filter((p) => p.contrato_id !== contrato_id));
-    setContratos(contratos.filter((c) => c.contrato_id !== contrato_id));
-    
-    if (selectedContrato?.contrato_id === contrato_id) {
-      setSelectedContrato(null);
+    if (!contrato_id || isNaN(Number(contrato_id))) {
+      toast({ title: 'ID do contrato inválido', status: 'error' });
+      return;
+    }
+    try {
+      await contratoService.delete(Number(contrato_id));
+      setPagamentos(pagamentos.filter((p: Pagamento) => p.contrato_id !== contrato_id));
+      setContratos(contratos.filter((c: Contrato) => c.contrato_id !== contrato_id));
+      
+      if (selectedContrato?.contrato_id === contrato_id) {
+        setSelectedContrato(null);
+      }
+      toast({ title: 'Contrato excluído', status: 'success' });
+    } catch (error) {
+      toast({ title: 'Erro ao excluir contrato', status: 'error' });
+      throw error;
     }
   };
 
@@ -226,72 +278,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const getContratosByCliente = (cliente_id: number): Contrato[] => {
-    let filteredContratos = contratos.filter((c) => c.cliente_id === cliente_id);
-
-    // Apply combined filters: both status and period must match the same payment
-    const hasStatusFilter = filters.statusPagamento !== 'todos';
-    const hasPeriodFilter = filters.periodo !== 'todos';
-
-    if (hasStatusFilter || hasPeriodFilter) {
-      // Calculate period range if needed
-      let startDate: Date | null = null;
-      let endDate: Date | null = null;
-
-      if (hasPeriodFilter) {
-        const hoje = new Date();
-        endDate = hoje;
-
-        switch (filters.periodo) {
-          case 'mes_atual':
-            startDate = startOfMonth(hoje);
-            endDate = endOfMonth(hoje);
-            break;
-          case 'mes_passado':
-            startDate = startOfMonth(subMonths(hoje, 1));
-            endDate = endOfMonth(subMonths(hoje, 1));
-            break;
-          case 'ultimos_3_meses':
-            startDate = startOfMonth(subMonths(hoje, 2));
-            endDate = endOfMonth(hoje);
-            break;
-          case 'ano_atual':
-            startDate = startOfYear(hoje);
-            endDate = endOfMonth(hoje);
-            break;
-          default:
-            startDate = new Date(0);
-        }
-      }
-
-      // Filter contracts where at least one payment matches ALL active filter criteria
-      filteredContratos = filteredContratos.filter((contrato) => {
-        const contratoPagamentos = pagamentos.filter((p) => p.contrato_id === contrato.contrato_id);
-        
-        return contratoPagamentos.some((p) => {
-          // Check status filter
-          let matchesStatus = true;
-          if (hasStatusFilter) {
-            if (filters.statusPagamento === 'ATRASADO') {
-              matchesStatus = pagamentoEstaAtrasado(p);
-            } else {
-              matchesStatus = p.status === filters.statusPagamento;
-            }
-          }
-
-          // Check period filter
-          let matchesPeriod = true;
-          if (hasPeriodFilter && startDate && endDate) {
-            const vencimento = parseISO(p.data_vencimento);
-            matchesPeriod = vencimento >= startDate && vencimento <= endDate;
-          }
-
-          // Payment must match ALL active filters
-          return matchesStatus && matchesPeriod;
-        });
-      });
-    }
-
-    return filteredContratos;
+    return contratos.filter((c: Contrato) => c.cliente_id === cliente_id);
   };
 
   // Pagamento CRUD
@@ -313,7 +300,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       };
       
       const updated = await pagamentoService.update(pagamento.pagamento_id, updateDTO);
-      setPagamentos(pagamentos.map((p) => (p.pagamento_id === updated.pagamento_id ? updated : p)));
+      setPagamentos(pagamentos.map((p: Pagamento) => (p.pagamento_id === updated.pagamento_id ? updated : p)));
       toast({ title: 'Pagamento atualizado', status: 'success' });
     } catch (error) {
       toast({ title: 'Erro ao atualizar pagamento', status: 'error' });
@@ -323,15 +310,64 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const deletePagamento = async (pagamento_id: number) => {
     console.warn('Delete pagamento não persistido no backend');
-    setPagamentos(pagamentos.filter((p) => p.pagamento_id !== pagamento_id));
+    setPagamentos(pagamentos.filter((p: Pagamento) => p.pagamento_id !== pagamento_id));
   };
 
   const getPagamentosByContrato = (contrato_id: number): Pagamento[] => {
-    return pagamentos.filter((p) => p.contrato_id === contrato_id).sort((a, b) => a.numero_parcela - b.numero_parcela);
+    return pagamentos.filter((p: Pagamento) => p.contrato_id === contrato_id).sort((a: Pagamento, b: Pagamento) => a.numero_parcela - b.numero_parcela);
+  };
+
+  const getFilteredPagamentosByContrato = (contrato_id: number): Pagamento[] => {
+    let filtered = pagamentos.filter((p: Pagamento) => p.contrato_id === contrato_id);
+
+    // Filtro por status
+    if (paymentFilters.status !== 'TODOS') {
+      filtered = filtered.filter((p: Pagamento) => {
+        // Calcular status real considerando atrasos não atualizados
+        const vencimento = parseISO(p.data_vencimento);
+        const hoje = new Date();
+        const estaAtrasadoCalculado = p.status === 'EM_ABERTO' && isBefore(vencimento, startOfDay(hoje));
+        const statusReal = estaAtrasadoCalculado ? 'ATRASADO' : p.status;
+        return statusReal === paymentFilters.status;
+      });
+    }
+
+    // Filtro por data de vencimento (de)
+    if (paymentFilters.dateFrom) {
+      const dateFrom = startOfDay(parseISO(paymentFilters.dateFrom));
+      filtered = filtered.filter((p: Pagamento) => {
+        const vencimento = parseISO(p.data_vencimento);
+        return !isBefore(vencimento, dateFrom);
+      });
+    }
+
+    // Filtro por data de vencimento (até)
+    if (paymentFilters.dateTo) {
+      const dateTo = endOfDay(parseISO(paymentFilters.dateTo));
+      filtered = filtered.filter((p: Pagamento) => {
+        const vencimento = parseISO(p.data_vencimento);
+        return !isAfter(vencimento, dateTo);
+      });
+    }
+
+    return filtered.sort((a: Pagamento, b: Pagamento) => a.numero_parcela - b.numero_parcela);
+  };
+
+  // Payment Filters
+  const setPaymentFilters = (filters: Partial<PaymentFilters>) => {
+    setPaymentFiltersState((prev: PaymentFilters) => ({ ...prev, ...filters }));
+  };
+
+  const clearPaymentFilters = () => {
+    setPaymentFiltersState(defaultPaymentFilters);
+  };
+
+  const filterByAtrasados = () => {
+    setPaymentFiltersState({ ...defaultPaymentFilters, status: 'ATRASADO' });
   };
 
   const marcarPagamentoComoPago = async (pagamento_id: number, data_pagamento: string) => {
-    const pagamento = pagamentos.find((p) => p.pagamento_id === pagamento_id);
+    const pagamento = pagamentos.find((p: Pagamento) => p.pagamento_id === pagamento_id);
     if (!pagamento) return;
 
     const vencimento = parseISO(pagamento.data_vencimento);
@@ -349,7 +385,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       };
       
       const updated = await pagamentoService.update(pagamento_id, updateDTO);
-      setPagamentos(pagamentos.map((p) => (p.pagamento_id === updated.pagamento_id ? updated : p)));
+      setPagamentos(pagamentos.map((p: Pagamento) => (p.pagamento_id === updated.pagamento_id ? updated : p)));
       toast({ title: 'Pagamento registrado', status: 'success' });
     } catch (error) {
       toast({ title: 'Erro ao registrar pagamento', status: 'error' });
@@ -362,7 +398,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const term = searchTerm.toLowerCase();
     return clientes.filter(
-      (c) =>
+      (c: Cliente) =>
         c.nome.toLowerCase().includes(term) ||
         c.registro.toLowerCase().includes(term) ||
         c.telefone.toLowerCase().includes(term)
@@ -376,21 +412,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Statistics
   const getTotalReceber = (cliente_id: number): number => {
-    const clienteContratos = contratos.filter((c) => c.cliente_id === cliente_id);
-    const contratoIds = clienteContratos.map((c) => c.contrato_id);
+    const clienteContratos = contratos.filter((c: Contrato) => c.cliente_id === cliente_id);
+    const contratoIds = clienteContratos.map((c: Contrato) => c.contrato_id);
     
     return pagamentos
-      .filter((p) => contratoIds.includes(p.contrato_id) && p.status !== 'PAGO' && p.status !== 'PAGO_COM_ATRASO')
-      .reduce((sum, p) => sum + p.valor, 0);
+      .filter((p: Pagamento) => contratoIds.includes(p.contrato_id) && p.status !== 'PAGO' && p.status !== 'PAGO_COM_ATRASO')
+      .reduce((sum: number, p: Pagamento) => sum + p.valor, 0);
   };
 
   const getTotalAtrasado = (cliente_id: number): number => {
-    const clienteContratos = contratos.filter((c) => c.cliente_id === cliente_id);
-    const contratoIds = clienteContratos.map((c) => c.contrato_id);
+    const clienteContratos = contratos.filter((c: Contrato) => c.cliente_id === cliente_id);
+    const contratoIds = clienteContratos.map((c: Contrato) => c.contrato_id);
+    const hoje = new Date();
     
     return pagamentos
-      .filter((p) => contratoIds.includes(p.contrato_id) && pagamentoEstaAtrasado(p))
-      .reduce((sum, p) => sum + p.valor, 0);
+      .filter((p: Pagamento) => {
+        if (!contratoIds.includes(p.contrato_id)) return false;
+        // Considerar tanto status ATRASADO quanto EM_ABERTO com vencimento passado
+        if (p.status === 'ATRASADO') return true;
+        if (p.status === 'EM_ABERTO') {
+          const vencimento = parseISO(p.data_vencimento);
+          return isBefore(vencimento, startOfDay(hoje));
+        }
+        return false;
+      })
+      .reduce((sum: number, p: Pagamento) => sum + p.valor, 0);
+  };
+
+  const getClientesComAtrasados = (): Cliente[] => {
+    const hoje = new Date();
+    const clienteIdsComAtrasados = new Set<number>();
+
+    pagamentos.forEach((p: Pagamento) => {
+      const isAtrasado = p.status === 'ATRASADO' || 
+        (p.status === 'EM_ABERTO' && isBefore(parseISO(p.data_vencimento), startOfDay(hoje)));
+      
+      if (isAtrasado) {
+        const contrato = contratos.find((c: Contrato) => c.contrato_id === p.contrato_id);
+        if (contrato) {
+          clienteIdsComAtrasados.add(contrato.cliente_id);
+        }
+      }
+    });
+
+    return clientes.filter((c: Cliente) => clienteIdsComAtrasados.has(c.cliente_id));
   };
 
   const value: AppContextType = {
@@ -401,7 +466,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     selectedContrato,
     searchTerm,
     isLoading,
-    filters,
+    paymentFilters,
     addCliente,
     updateCliente,
     deleteCliente,
@@ -415,13 +480,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     updatePagamento,
     deletePagamento,
     getPagamentosByContrato,
+    getFilteredPagamentosByContrato,
     marcarPagamentoComoPago,
     setSearchTerm,
     getFilteredClientes,
-    setFilters,
+    setPaymentFilters,
+    clearPaymentFilters,
+    filterByAtrasados,
     contratoTemPagamentoAtrasado,
     getTotalReceber,
     getTotalAtrasado,
+    getClientesComAtrasados,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

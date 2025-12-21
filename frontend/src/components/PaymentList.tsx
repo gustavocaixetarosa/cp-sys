@@ -12,18 +12,37 @@ import {
   Icon,
   Skeleton,
   Stack,
+  Select,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  Collapse,
+  Tooltip,
 } from '@chakra-ui/react';
-import { CheckIcon, EditIcon, TimeIcon } from '@chakra-ui/icons';
-import { useApp } from '../contexts/AppContext';
-import { format, parseISO, isBefore } from 'date-fns';
+import { CheckIcon, EditIcon, TimeIcon, CloseIcon, CalendarIcon } from '@chakra-ui/icons';
+import { FiFilter } from 'react-icons/fi';
+import { useApp, type PaymentFilterStatus } from '../contexts/AppContext';
+import { format, parseISO, isBefore, startOfDay } from 'date-fns';
 import PaymentFormModal from './forms/PaymentFormModal';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import type { Pagamento } from '../types';
 
 const PaymentList = () => {
-  const { selectedContrato, getPagamentosByContrato, marcarPagamentoComoPago, isLoading } = useApp();
+  const { 
+    selectedContrato, 
+    getPagamentosByContrato, 
+    getFilteredPagamentosByContrato,
+    marcarPagamentoComoPago, 
+    isLoading,
+    paymentFilters,
+    setPaymentFilters,
+    clearPaymentFilters,
+  } = useApp();
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isFilterOpen, onToggle: onFilterToggle } = useDisclosure();
   const [pagamentoToEdit, setPagamentoToEdit] = useState<Pagamento | null>(null);
+
+  const hasActiveFilters = paymentFilters.status !== 'TODOS' || paymentFilters.dateFrom || paymentFilters.dateTo;
 
   if (!selectedContrato) {
     return (
@@ -35,7 +54,8 @@ const PaymentList = () => {
     );
   }
 
-  const pagamentos = getPagamentosByContrato(selectedContrato.contrato_id);
+  const allPagamentos = getPagamentosByContrato(selectedContrato.contrato_id);
+  const pagamentos = getFilteredPagamentosByContrato(selectedContrato.contrato_id);
   const hoje = new Date();
 
   const getStatusColor = (status: string) => {
@@ -78,23 +98,125 @@ const PaymentList = () => {
     onOpen();
   };
 
-  // Calcular totais
-  const totalPago = pagamentos
-    .filter((p) => p.status === 'PAGO' || p.status === 'PAGO_COM_ATRASO')
-    .reduce((sum, p) => sum + p.valor, 0);
+  // Calcular totais (usando todos os pagamentos, sem filtro)
+  const totalPago = allPagamentos
+    .filter((p: Pagamento) => p.status === 'PAGO' || p.status === 'PAGO_COM_ATRASO')
+    .reduce((sum: number, p: Pagamento) => sum + p.valor, 0);
   
-  const totalAtrasado = pagamentos
-    .filter((p) => p.status === 'ATRASADO')
-    .reduce((sum, p) => sum + p.valor, 0);
+  const totalAtrasado = allPagamentos
+    .filter((p: Pagamento) => {
+      if (p.status === 'ATRASADO') return true;
+      if (p.status === 'EM_ABERTO') {
+        const vencimento = parseISO(p.data_vencimento);
+        return isBefore(vencimento, startOfDay(hoje));
+      }
+      return false;
+    })
+    .reduce((sum: number, p: Pagamento) => sum + p.valor, 0);
   
-  const totalAberto = pagamentos
-    .filter((p) => p.status === 'EM_ABERTO')
-    .reduce((sum, p) => sum + p.valor, 0);
+  const totalAberto = allPagamentos
+    .filter((p: Pagamento) => {
+      if (p.status !== 'EM_ABERTO') return false;
+      const vencimento = parseISO(p.data_vencimento);
+      return !isBefore(vencimento, startOfDay(hoje));
+    })
+    .reduce((sum: number, p: Pagamento) => sum + p.valor, 0);
+
+  const handleStatusFilterChange = (status: PaymentFilterStatus) => {
+    setPaymentFilters({ status });
+  };
 
   return (
     <Flex direction="column" h="100%">
       <Box p={5} borderBottom="1px solid" borderColor="gray.100">
-        <Heading size="sm" color="gray.700" mb={4}>Pagamentos</Heading>
+        <HStack justify="space-between" mb={4}>
+          <Heading size="sm" color="gray.700">Pagamentos</Heading>
+          <HStack spacing={2}>
+            {hasActiveFilters && (
+              <Tooltip label="Limpar filtros">
+                <IconButton
+                  aria-label="Limpar filtros"
+                  icon={<CloseIcon />}
+                  size="xs"
+                  variant="ghost"
+                  colorScheme="red"
+                  onClick={clearPaymentFilters}
+                />
+              </Tooltip>
+            )}
+            <Tooltip label={isFilterOpen ? "Ocultar filtros" : "Mostrar filtros"}>
+              <IconButton
+                aria-label="Filtros"
+                icon={<Icon as={FiFilter} />}
+                size="sm"
+                variant={hasActiveFilters ? 'solid' : 'ghost'}
+                colorScheme={hasActiveFilters ? 'blue' : 'gray'}
+                onClick={onFilterToggle}
+              />
+            </Tooltip>
+          </HStack>
+        </HStack>
+
+        {/* Filtros */}
+        <Collapse in={isFilterOpen} animateOpacity>
+          <Box bg="blue.50" p={4} borderRadius="xl" mb={4}>
+            <Text fontSize="xs" color="blue.600" textTransform="uppercase" fontWeight="bold" mb={3}>
+              Filtros
+            </Text>
+            <VStack spacing={3} align="stretch">
+              <Box>
+                <Text fontSize="xs" color="gray.600" mb={1}>Status</Text>
+                <Select
+                  size="sm"
+                  value={paymentFilters.status}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleStatusFilterChange(e.target.value as PaymentFilterStatus)}
+                  bg="white"
+                  borderRadius="lg"
+                >
+                  <option value="TODOS">Todos</option>
+                  <option value="EM_ABERTO">Em Aberto</option>
+                  <option value="ATRASADO">Atrasado</option>
+                  <option value="PAGO">Pago</option>
+                  <option value="PAGO_COM_ATRASO">Pago c/ Atraso</option>
+                </Select>
+              </Box>
+              <HStack spacing={2}>
+                <Box flex={1}>
+                  <Text fontSize="xs" color="gray.600" mb={1}>Vencimento de</Text>
+                  <InputGroup size="sm">
+                    <InputLeftElement pointerEvents="none">
+                      <CalendarIcon color="gray.400" />
+                    </InputLeftElement>
+                    <Input
+                      type="date"
+                      value={paymentFilters.dateFrom || ''}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPaymentFilters({ dateFrom: e.target.value || null })}
+                      bg="white"
+                      borderRadius="lg"
+                      pl={8}
+                    />
+                  </InputGroup>
+                </Box>
+                <Box flex={1}>
+                  <Text fontSize="xs" color="gray.600" mb={1}>até</Text>
+                  <InputGroup size="sm">
+                    <InputLeftElement pointerEvents="none">
+                      <CalendarIcon color="gray.400" />
+                    </InputLeftElement>
+                    <Input
+                      type="date"
+                      value={paymentFilters.dateTo || ''}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPaymentFilters({ dateTo: e.target.value || null })}
+                      bg="white"
+                      borderRadius="lg"
+                      pl={8}
+                    />
+                  </InputGroup>
+                </Box>
+              </HStack>
+            </VStack>
+          </Box>
+        </Collapse>
 
         <Box bg="gray.50" p={4} borderRadius="xl">
           <Text fontSize="xs" color="gray.500" textTransform="uppercase" fontWeight="bold" mb={3}>
@@ -108,11 +230,25 @@ const PaymentList = () => {
                 R$ {totalPago.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </Text>
             </HStack>
-            <HStack justify="space-between">
+            <HStack 
+              justify="space-between" 
+              cursor="pointer" 
+              _hover={{ bg: 'red.100' }}
+              p={1}
+              mx={-1}
+              borderRadius="md"
+              onClick={() => handleStatusFilterChange(paymentFilters.status === 'ATRASADO' ? 'TODOS' : 'ATRASADO')}
+              transition="all 0.2s"
+            >
               <Text fontSize="sm" color="gray.600">Em Atraso</Text>
-              <Text fontSize="sm" fontWeight="600" color="red.600">
-                R$ {totalAtrasado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </Text>
+              <HStack>
+                <Text fontSize="sm" fontWeight="600" color="red.600">
+                  R$ {totalAtrasado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
+                {paymentFilters.status === 'ATRASADO' && (
+                  <Badge colorScheme="red" fontSize="2xs">Filtrado</Badge>
+                )}
+              </HStack>
             </HStack>
             <HStack justify="space-between">
               <Text fontSize="sm" color="gray.600">A Vencer</Text>
@@ -122,6 +258,12 @@ const PaymentList = () => {
             </HStack>
           </VStack>
         </Box>
+
+        {hasActiveFilters && (
+          <Text fontSize="xs" color="blue.600" mt={2} textAlign="center">
+            Mostrando {pagamentos.length} de {allPagamentos.length} pagamentos
+          </Text>
+        )}
       </Box>
 
       <Box flex={1} overflowY="auto" p={5}>
@@ -133,7 +275,7 @@ const PaymentList = () => {
           </Stack>
         ) : (
           <VStack spacing={3} align="stretch">
-            {pagamentos.map((pagamento) => {
+            {pagamentos.map((pagamento: Pagamento) => {
               const vencimento = parseISO(pagamento.data_vencimento);
               const statusOriginal = pagamento.status;
               
