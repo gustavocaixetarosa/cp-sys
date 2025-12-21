@@ -82,19 +82,27 @@ jobs:
             
             # Build and start containers
             echo "🏗️  Building and starting containers..."
-            docker compose up -d --build
+            docker compose up -d --build || {
+              echo "❌ Failed to start containers"
+              docker compose logs
+              exit 1
+            }
             
             # Wait for containers to be healthy
             echo "⏳ Waiting for containers to be healthy..."
-            sleep 15
+            sleep 20
             
             # Show container status
             echo "📊 Container status:"
             docker compose ps
             
-            # Show backend logs immediately
+            # Show backend logs immediately (even if container is failing)
             echo "📋 Backend logs:"
-            docker compose logs --tail=50 backend
+            docker compose logs --tail=100 backend || true
+            
+            # Show postgres logs for debugging
+            echo "📋 Postgres logs:"
+            docker compose logs --tail=20 postgres || true
             
             # Check container health
             echo "🔍 Checking container health..."
