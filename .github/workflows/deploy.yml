@@ -68,7 +68,7 @@ jobs:
             
             # Stop existing containers
             echo "🛑 Stopping existing containers..."
-            docker-compose down || true
+            docker compose down || true
             
             # Clean up old images
             echo "🧹 Cleaning up old Docker images..."
@@ -76,7 +76,7 @@ jobs:
             
             # Build and start containers
             echo "🏗️  Building and starting containers..."
-            docker-compose up -d --build
+            docker compose up -d --build
             
             # Wait for containers to be healthy
             echo "⏳ Waiting for containers to be healthy..."
@@ -84,7 +84,7 @@ jobs:
             
             # Check container health
             echo "🔍 Checking container health..."
-            if docker-compose ps | grep -q "Up"; then
+            if docker compose ps | grep -q "Up"; then
               echo "✅ Containers are running"
               
               # Check if backend is responding
@@ -95,7 +95,7 @@ jobs:
                   break
                 elif [ "$i" -eq 30 ]; then
                   echo "❌ Backend health check failed"
-                  docker-compose logs backend
+                  docker compose logs backend
                   exit 1
                 fi
                 echo "⏳ Waiting for backend... (attempt $i/30)"
@@ -113,13 +113,13 @@ jobs:
               echo "✅ Deployment completed successfully!"
             else
               echo "❌ Containers failed to start"
-              docker-compose logs
+              docker compose logs
               exit 1
             fi
             
             # Show running containers
             echo "📊 Running containers:"
-            docker-compose ps
+            docker compose ps
 
       - name: Deployment Status
         if: always()
