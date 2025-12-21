@@ -50,6 +50,7 @@ interface AppContextType {
   setPaymentFilters: (filters: Partial<PaymentFilters>) => void;
   clearPaymentFilters: () => void;
   filterByAtrasados: () => void;
+  contratoTemPagamentoAtrasado: (contrato_id: number) => boolean;
 
   // Statistics
   getTotalReceber: (cliente_id: number) => number;
@@ -262,6 +263,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSelectedContrato(contrato);
   };
 
+  // Helper function to check if a payment is overdue
+  // Checks both explicit ATRASADO status and EM_ABERTO payments past due date
+  const pagamentoEstaAtrasado = (pagamento: Pagamento): boolean => {
+    if (pagamento.status === 'ATRASADO') {
+      return true;
+    }
+    if (pagamento.status === 'EM_ABERTO') {
+      const vencimento = parseISO(pagamento.data_vencimento);
+      const hoje = new Date();
+      return isBefore(vencimento, hoje);
+    }
+    return false;
+  };
+
   const getContratosByCliente = (cliente_id: number): Contrato[] => {
     return contratos.filter((c: Contrato) => c.cliente_id === cliente_id);
   };
@@ -390,6 +405,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
   };
 
+  // Check if contract has overdue payments
+  const contratoTemPagamentoAtrasado = (contrato_id: number): boolean => {
+    return pagamentos.some((p) => p.contrato_id === contrato_id && pagamentoEstaAtrasado(p));
+  };
+
   // Statistics
   const getTotalReceber = (cliente_id: number): number => {
     const clienteContratos = contratos.filter((c: Contrato) => c.cliente_id === cliente_id);
@@ -467,6 +487,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPaymentFilters,
     clearPaymentFilters,
     filterByAtrasados,
+    contratoTemPagamentoAtrasado,
     getTotalReceber,
     getTotalAtrasado,
     getClientesComAtrasados,
