@@ -17,7 +17,10 @@ jobs:
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.3
         env:
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB || 'cobranca_cp' }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER || 'postgres' }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          SPRING_JPA_HIBERNATE_DDL_AUTO: ${{ secrets.SPRING_JPA_HIBERNATE_DDL_AUTO || 'update' }}
           APP_FRONTEND_URL: ${{ secrets.APP_FRONTEND_URL }}
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
@@ -26,7 +29,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || '22' }}
-          envs: POSTGRES_PASSWORD,APP_FRONTEND_URL,VITE_API_URL,JWT_SECRET
+          envs: POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,SPRING_JPA_HIBERNATE_DDL_AUTO,APP_FRONTEND_URL,VITE_API_URL,JWT_SECRET
           script: |
             set -e
             
@@ -49,7 +52,10 @@ jobs:
             # Update .env with secrets
             echo "🔐 Updating environment variables..."
             cat > .env.secrets << 'EOFENV'
+            POSTGRES_DB=${POSTGRES_DB}
+            POSTGRES_USER=${POSTGRES_USER}
             POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+            SPRING_JPA_HIBERNATE_DDL_AUTO=${SPRING_JPA_HIBERNATE_DDL_AUTO}
             APP_FRONTEND_URL=${APP_FRONTEND_URL}
             VITE_API_URL=${VITE_API_URL}
             JWT_SECRET=${JWT_SECRET}
@@ -58,7 +64,7 @@ jobs:
             # Merge .env files (keep existing non-sensitive vars, override with secrets)
             if [ -f .env ]; then
               # Remove old secret values and append new ones
-              grep -v "POSTGRES_PASSWORD\|APP_FRONTEND_URL\|VITE_API_URL\|JWT_SECRET" .env > .env.tmp || true
+              grep -v "POSTGRES_DB\|POSTGRES_USER\|POSTGRES_PASSWORD\|SPRING_JPA_HIBERNATE_DDL_AUTO\|APP_FRONTEND_URL\|VITE_API_URL\|JWT_SECRET" .env > .env.tmp || true
               cat .env.tmp .env.secrets > .env.new
               mv .env.new .env
               rm .env.tmp .env.secrets
