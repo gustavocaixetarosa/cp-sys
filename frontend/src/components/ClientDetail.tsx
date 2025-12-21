@@ -26,11 +26,12 @@ import { EditIcon, DeleteIcon, DownloadIcon, TimeIcon, WarningIcon } from '@chak
 import { useApp } from '../contexts/AppContext';
 import ContractList from './ContractList';
 import ClientFormModal from './forms/ClientFormModal';
+import FilterPanel from './FilterPanel';
 import { useRef } from 'react';
 import { generateClientReport } from '../utils/reportGenerator';
 
 const ClientDetail = () => {
-  const { selectedCliente, deleteCliente, getTotalReceber, getTotalAtrasado, getContratosByCliente, pagamentos } = useApp();
+  const { selectedCliente, deleteCliente, getTotalReceber, getTotalAtrasado, getContratosByCliente, pagamentos, setFilters } = useApp();
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -168,6 +169,12 @@ const ClientDetail = () => {
               
             </Stat>
           </SimpleGrid>
+        </Box>
+
+        {/* Filter Section */}
+        <Box bg="white" p={6} borderRadius="2xl" boxShadow="sm">
+          <Heading size="sm" color="gray.700" mb={4}>Filtros</Heading>
+          <FilterPanel onFilterChange={setFilters} />
         </Box>
 
         {/* Contracts Section */}

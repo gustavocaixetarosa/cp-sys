@@ -2,7 +2,13 @@ import React, { createContext, useContext, useState, useEffect, type ReactNode }
 import { useToast } from '@chakra-ui/react';
 import type { Cliente, Contrato, Pagamento, CreateClienteDTO, CreateContratoDTO, UpdatePagamentoDTO } from '../types';
 import { clienteService, contratoService, pagamentoService } from '../services/api';
-import { format, parseISO, isBefore } from 'date-fns';
+import { format, parseISO, isBefore, startOfMonth, endOfMonth, subMonths, startOfYear } from 'date-fns';
+
+export interface FilterState {
+  statusPagamento: string;
+  statusContrato: string;
+  periodo: string;
+}
 
 interface AppContextType {
   // State
@@ -13,6 +19,7 @@ interface AppContextType {
   selectedContrato: Contrato | null;
   searchTerm: string;
   isLoading: boolean;
+  filters: FilterState;
 
   // Cliente CRUD
   addCliente: (cliente: CreateClienteDTO) => Promise<void>;
@@ -37,6 +44,8 @@ interface AppContextType {
   // Search & Filter
   setSearchTerm: (term: string) => void;
   getFilteredClientes: () => Cliente[];
+  setFilters: (filters: FilterState) => void;
+  contratoTemPagamentoAtrasado: (contrato_id: number) => boolean;
 
   // Statistics
   getTotalReceber: (cliente_id: number) => number;
@@ -53,6 +62,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [selectedContrato, setSelectedContrato] = useState<Contrato | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [filters, setFilters] = useState<FilterState>({
+    statusPagamento: 'todos',
+    statusContrato: 'todos',
+    periodo: 'todos',
+  });
   const toast = useToast();
 
   // Load initial data
@@ -198,7 +212,62 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const getContratosByCliente = (cliente_id: number): Contrato[] => {
-    return contratos.filter((c) => c.cliente_id === cliente_id);
+    let filteredContratos = contratos.filter((c) => c.cliente_id === cliente_id);
+
+    // Apply payment status filter
+    if (filters.statusPagamento !== 'todos') {
+      filteredContratos = filteredContratos.filter((contrato) => {
+        const contratoPagamentos = pagamentos.filter((p) => p.contrato_id === contrato.contrato_id);
+        
+        if (filters.statusPagamento === 'ATRASADO') {
+          // Contract has at least one overdue payment
+          return contratoPagamentos.some((p) => p.status === 'ATRASADO');
+        } else {
+          // Contract has at least one payment with the specified status
+          return contratoPagamentos.some((p) => p.status === filters.statusPagamento);
+        }
+      });
+    }
+
+    // Apply period filter
+    if (filters.periodo !== 'todos') {
+      const hoje = new Date();
+      let startDate: Date;
+      let endDate: Date = hoje;
+
+      switch (filters.periodo) {
+        case 'mes_atual':
+          startDate = startOfMonth(hoje);
+          endDate = endOfMonth(hoje);
+          break;
+        case 'mes_passado':
+          startDate = startOfMonth(subMonths(hoje, 1));
+          endDate = endOfMonth(subMonths(hoje, 1));
+          break;
+        case 'ultimos_3_meses':
+          startDate = startOfMonth(subMonths(hoje, 2));
+          endDate = endOfMonth(hoje);
+          break;
+        case 'ano_atual':
+          startDate = startOfYear(hoje);
+          endDate = endOfMonth(hoje);
+          break;
+        default:
+          startDate = new Date(0);
+      }
+
+      filteredContratos = filteredContratos.filter((contrato) => {
+        const contratoPagamentos = pagamentos.filter((p) => p.contrato_id === contrato.contrato_id);
+        
+        // Check if any payment falls within the period
+        return contratoPagamentos.some((p) => {
+          const vencimento = parseISO(p.data_vencimento);
+          return vencimento >= startDate && vencimento <= endDate;
+        });
+      });
+    }
+
+    return filteredContratos;
   };
 
   // Pagamento CRUD
@@ -276,6 +345,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
   };
 
+  // Check if contract has overdue payments
+  const contratoTemPagamentoAtrasado = (contrato_id: number): boolean => {
+    return pagamentos.some((p) => p.contrato_id === contrato_id && p.status === 'ATRASADO');
+  };
+
   // Statistics
   const getTotalReceber = (cliente_id: number): number => {
     const clienteContratos = contratos.filter((c) => c.cliente_id === cliente_id);
@@ -303,6 +377,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     selectedContrato,
     searchTerm,
     isLoading,
+    filters,
     addCliente,
     updateCliente,
     deleteCliente,
@@ -319,6 +394,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     marcarPagamentoComoPago,
     setSearchTerm,
     getFilteredClientes,
+    setFilters,
+    contratoTemPagamentoAtrasado,
     getTotalReceber,
     getTotalAtrasado,
   };

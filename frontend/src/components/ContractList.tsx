@@ -41,6 +41,7 @@ const ContractList = () => {
     selectedContrato,
     selectContrato,
     isLoading,
+    contratoTemPagamentoAtrasado,
   } = useApp();
   
   const { isOpen: isAddOpen, onOpen: onAddOpen, onClose: onAddClose } = useDisclosure();
@@ -117,55 +118,68 @@ const ContractList = () => {
               </Tr>
             </Thead>
             <Tbody>
-              {contratos.map((contrato) => (
-                <Tr
-                  key={contrato.contrato_id}
-                  cursor="pointer"
-                  bg={selectedContrato?.contrato_id === contrato.contrato_id ? 'blue.50' : 'transparent'}
-                  _hover={{ bg: selectedContrato?.contrato_id === contrato.contrato_id ? 'blue.50' : 'gray.50' }}
-                  onClick={() => handleRowClick(contrato)}
-                  transition="all 0.2s"
-                >
-                  <Td borderBottomWidth="1px" borderColor="gray.100" fontWeight="medium" color="gray.500">#{contrato.contrato_id}</Td>
-                  <Td borderBottomWidth="1px" borderColor="gray.100">
-                    <Box>
-                      <Text fontWeight="600" color="gray.700">{contrato.nome_contratante}</Text>
-                      <Text fontSize="xs" color="gray.400">{contrato.cpf_contratante}</Text>
-                    </Box>
-                  </Td>
-                  <Td borderBottomWidth="1px" borderColor="gray.100" color="gray.600">{format(new Date(contrato.data), 'dd/MM/yyyy')}</Td>
-                  <Td borderBottomWidth="1px" borderColor="gray.100" isNumeric>
-                    <Badge colorScheme="purple" variant="subtle" borderRadius="full" px={2}>
-                      {contrato.duracao_em_meses} meses
-                    </Badge>
-                  </Td>
-                  <Td borderBottomWidth="1px" borderColor="gray.100" isNumeric fontWeight="bold" color="gray.700">
-                    R$ {contrato.valor_contrato.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </Td>
-                  <Td borderBottomWidth="1px" borderColor="gray.100">
-                    <Menu>
-                      <MenuButton
-                        as={IconButton}
-                        aria-label="Opções"
-                        icon={<HamburgerIcon />}
-                        variant="ghost"
-                        size="sm"
-                        color="gray.400"
-                        onClick={(e) => e.stopPropagation()}
-                        _hover={{ color: 'gray.600', bg: 'gray.100' }}
-                      />
-                      <MenuList fontSize="sm" boxShadow="lg" borderRadius="xl" border="none">
-                        <MenuItem icon={<EditIcon />} onClick={(e) => { e.stopPropagation(); handleEdit(contrato); }}>
-                          Editar
-                        </MenuItem>
-                        <MenuItem icon={<DeleteIcon />} color="red.500" onClick={(e) => { e.stopPropagation(); handleDeleteClick(contrato); }}>
-                          Excluir
-                        </MenuItem>
-                      </MenuList>
-                    </Menu>
-                  </Td>
-                </Tr>
-              ))}
+              {contratos.map((contrato) => {
+                const temPagamentoAtrasado = contratoTemPagamentoAtrasado(contrato.contrato_id);
+                const isSelected = selectedContrato?.contrato_id === contrato.contrato_id;
+                
+                return (
+                  <Tr
+                    key={contrato.contrato_id}
+                    cursor="pointer"
+                    bg={isSelected ? (temPagamentoAtrasado ? 'red.50' : 'blue.50') : 'transparent'}
+                    _hover={{ bg: isSelected ? (temPagamentoAtrasado ? 'red.50' : 'blue.50') : (temPagamentoAtrasado ? 'red.50' : 'gray.50') }}
+                    onClick={() => handleRowClick(contrato)}
+                    transition="all 0.2s"
+                    borderLeft={temPagamentoAtrasado ? '4px solid' : 'none'}
+                    borderLeftColor={temPagamentoAtrasado ? 'red.500' : 'transparent'}
+                  >
+                    <Td borderBottomWidth="1px" borderColor="gray.100" fontWeight="medium" color={temPagamentoAtrasado ? 'red.600' : 'gray.500'}>
+                      #{contrato.contrato_id}
+                    </Td>
+                    <Td borderBottomWidth="1px" borderColor="gray.100">
+                      <Box>
+                        <Text fontWeight="600" color={temPagamentoAtrasado ? 'red.700' : 'gray.700'}>
+                          {contrato.nome_contratante}
+                        </Text>
+                        <Text fontSize="xs" color="gray.400">{contrato.cpf_contratante}</Text>
+                      </Box>
+                    </Td>
+                    <Td borderBottomWidth="1px" borderColor="gray.100" color="gray.600">
+                      {format(new Date(contrato.data), 'dd/MM/yyyy')}
+                    </Td>
+                    <Td borderBottomWidth="1px" borderColor="gray.100" isNumeric>
+                      <Badge colorScheme="purple" variant="subtle" borderRadius="full" px={2}>
+                        {contrato.duracao_em_meses} meses
+                      </Badge>
+                    </Td>
+                    <Td borderBottomWidth="1px" borderColor="gray.100" isNumeric fontWeight="bold" color={temPagamentoAtrasado ? 'red.700' : 'gray.700'}>
+                      R$ {contrato.valor_contrato.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Td>
+                    <Td borderBottomWidth="1px" borderColor="gray.100">
+                      <Menu>
+                        <MenuButton
+                          as={IconButton}
+                          aria-label="Opções"
+                          icon={<HamburgerIcon />}
+                          variant="ghost"
+                          size="sm"
+                          color="gray.400"
+                          onClick={(e) => e.stopPropagation()}
+                          _hover={{ color: 'gray.600', bg: 'gray.100' }}
+                        />
+                        <MenuList fontSize="sm" boxShadow="lg" borderRadius="xl" border="none">
+                          <MenuItem icon={<EditIcon />} onClick={(e) => { e.stopPropagation(); handleEdit(contrato); }}>
+                            Editar
+                          </MenuItem>
+                          <MenuItem icon={<DeleteIcon />} color="red.500" onClick={(e) => { e.stopPropagation(); handleDeleteClick(contrato); }}>
+                            Excluir
+                          </MenuItem>
+                        </MenuList>
+                      </Menu>
+                    </Td>
+                  </Tr>
+                );
+              })}
             </Tbody>
           </Table>
         </Box>

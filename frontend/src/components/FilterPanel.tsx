@@ -7,15 +7,10 @@ import {
   Button,
 } from '@chakra-ui/react';
 import { useState } from 'react';
+import type { FilterState } from '../contexts/AppContext';
 
 interface FilterPanelProps {
   onFilterChange: (filters: FilterState) => void;
-}
-
-export interface FilterState {
-  statusPagamento: string;
-  statusContrato: string;
-  periodo: string;
 }
 
 const FilterPanel = ({ onFilterChange }: FilterPanelProps) => {
@@ -52,10 +47,10 @@ const FilterPanel = ({ onFilterChange }: FilterPanelProps) => {
             onChange={(e) => handleChange('statusPagamento', e.target.value)}
           >
             <option value="todos">Todos</option>
+            <option value="ATRASADO">Atrasado</option>
+            <option value="EM_ABERTO">Aberto</option>
             <option value="PAGO">Pago</option>
             <option value="PAGO_COM_ATRASO">Pago com Atraso</option>
-            <option value="ATRASADO">Atrasado</option>
-            <option value="ABERTO">Aberto</option>
           </Select>
         </FormControl>
 
