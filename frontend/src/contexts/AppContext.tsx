@@ -12,6 +12,12 @@ export interface PaymentFilters {
   dateTo: string | null;
 }
 
+export interface FilterState {
+  statusPagamento: string;
+  statusContrato: string;
+  periodo: string;
+}
+
 interface AppContextType {
   // State
   clientes: Cliente[];
