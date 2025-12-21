@@ -33,8 +33,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = getJwtFromRequest(request);
             String requestPath = request.getRequestURI();
             
-            // Log apenas para rotas protegidas (não para /auth)
-            if (!requestPath.startsWith("/auth")) {
+            // Log apenas para rotas protegidas (não para /auth ou /actuator)
+            if (!requestPath.startsWith("/auth") && !requestPath.startsWith("/actuator")) {
                 if (jwt == null) {
                     log.warn("Request sem token JWT: {} {}", request.getMethod(), requestPath);
                 } else if (!tokenProvider.validateToken(jwt)) {
