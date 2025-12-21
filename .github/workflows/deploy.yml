@@ -80,6 +80,37 @@ jobs:
             echo "🧹 Cleaning up old Docker images..."
             docker image prune -f || true
             
+            # Update Nginx configuration
+            echo "🔧 Updating Nginx configuration..."
+            if [ -f nginx-vps.conf ]; then
+              BACKUP_FILE="/etc/nginx/sites-available/cobranca.backup.$(date +%Y%m%d_%H%M%S)"
+              
+              # Backup existing config
+              if [ -f /etc/nginx/sites-available/cobranca ]; then
+                sudo cp /etc/nginx/sites-available/cobranca "$BACKUP_FILE"
+                echo "📦 Backup created: $BACKUP_FILE"
+              fi
+              
+              # Copy new config
+              sudo cp nginx-vps.conf /etc/nginx/sites-available/cobranca
+              
+              # Test nginx config
+              if sudo nginx -t 2>&1; then
+                echo "✅ Nginx configuration is valid"
+                sudo systemctl reload nginx
+                echo "✅ Nginx reloaded successfully"
+              else
+                echo "❌ Nginx configuration is invalid, restoring backup"
+                if [ -f "$BACKUP_FILE" ]; then
+                  sudo cp "$BACKUP_FILE" /etc/nginx/sites-available/cobranca
+                  sudo nginx -t && sudo systemctl reload nginx
+                fi
+                exit 1
+              fi
+            else
+              echo "⚠️  nginx-vps.conf not found, skipping Nginx update"
+            fi
+            
             # Build and start containers
             echo "🏗️  Building and starting containers..."
             docker compose up -d --build || {
