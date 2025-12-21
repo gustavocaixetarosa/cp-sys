@@ -172,7 +172,125 @@ docker compose exec postgres psql -U gustavo -d cobranca
 
 ## 🌐 Deployment na VPS
 
-### 1. Configuração Básica (HTTP)
+### Opção 1: Deploy Automatizado com GitHub Actions (Recomendado)
+
+Este projeto está configurado para deploy automático na VPS via GitHub Actions.
+
+#### 🔧 Setup Inicial na VPS
+
+**1. Instalar pré-requisitos**
+```bash
+# Instalar Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Instalar Docker Compose
+sudo apt-get update
+sudo apt-get install docker-compose-plugin
+
+# Adicionar usuário ao grupo docker (opcional)
+sudo usermod -aG docker $USER
+```
+
+**2. Clonar o projeto**
+```bash
+mkdir -p /home/$USER/projects
+cd /home/$USER/projects
+git clone https://github.com/SEU-USUARIO/cp-sys.git
+cd cp-sys
+```
+
+**3. Configurar SSH Key para GitHub Actions**
+```bash
+# Gerar nova SSH key (se não tiver)
+ssh-keygen -t ed25519 -C "github-actions" -f ~/.ssh/github_actions
+
+# Adicionar public key ao authorized_keys
+cat ~/.ssh/github_actions.pub >> ~/.ssh/authorized_keys
+
+# Copiar private key para configurar no GitHub
+cat ~/.ssh/github_actions
+# Copie o conteúdo completo (incluindo BEGIN e END)
+```
+
+**4. Criar arquivo .env base na VPS**
+```bash
+cd /home/$USER/projects/cp-sys
+cp .env.example .env
+nano .env
+```
+
+Configure as variáveis não-sensíveis:
+```bash
+POSTGRES_DB=cobranca
+POSTGRES_USER=gustavo
+SPRING_JPA_HIBERNATE_DDL_AUTO=update
+
+# As variáveis sensíveis serão injetadas pelo GitHub Actions:
+# POSTGRES_PASSWORD, JWT_SECRET, APP_FRONTEND_URL, VITE_API_URL
+```
+
+#### ⚙️ Configurar GitHub Secrets
+
+No seu repositório GitHub, vá em `Settings > Secrets and variables > Actions` e adicione:
+
+**Secrets de Infraestrutura:**
+- `VPS_HOST` - IP ou hostname da VPS (ex: `192.168.1.100`)
+- `VPS_USER` - Usuário SSH (ex: `gustavorosa`)
+- `VPS_PORT` - Porta SSH (ex: `22`)
+- `VPS_SSH_KEY` - Conteúdo completo da private key gerada acima
+
+**Secrets da Aplicação:**
+- `POSTGRES_PASSWORD` - Senha segura do banco
+- `JWT_SECRET` - String aleatória de pelo menos 32 caracteres
+- `APP_FRONTEND_URL` - URL do frontend (ex: `https://seudominio.com`)
+- `VITE_API_URL` - URL da API (ex: `https://api.seudominio.com`)
+
+**Secrets Opcionais:**
+- `DISCORD_WEBHOOK` - Webhook do Discord para notificações
+- `SLACK_WEBHOOK` - Webhook do Slack para notificações
+
+#### 🚀 Como Funciona
+
+1. **Push para main**: Ao fazer push na branch `main`, o GitHub Actions é acionado automaticamente
+2. **SSH na VPS**: Conecta na VPS usando a chave SSH
+3. **Atualiza código**: Faz `git pull` do código mais recente
+4. **Atualiza .env**: Injeta os secrets do GitHub no arquivo `.env`
+5. **Deploy**: Executa `docker-compose down` e `docker-compose up -d --build`
+6. **Health checks**: Verifica se containers subiram corretamente
+7. **Notifica**: Envia notificação de sucesso/falha (se configurado)
+
+#### 📝 Deploy Manual (Quando Necessário)
+
+```bash
+# Na VPS
+cd /home/$USER/projects/cp-sys
+
+# Usar o script de deploy
+./deploy.sh
+
+# Ou comandos Docker Compose tradicionais
+docker compose down
+docker compose up -d --build
+```
+
+#### 🔍 Monitorar Deployment
+
+```bash
+# Ver logs do deploy no GitHub Actions
+# Acesse: https://github.com/SEU-USUARIO/cp-sys/actions
+
+# Ver logs na VPS
+cd /home/$USER/projects/cp-sys
+docker compose logs -f
+
+# Ver status dos containers
+docker compose ps
+```
+
+---
+
+### Opção 2: Deploy Manual (HTTP Básico)
 
 ```bash
 # 1. Clonar projeto na VPS
@@ -180,7 +298,7 @@ git clone seu-repositorio.git cp-sys
 cd cp-sys
 
 # 2. Configurar .env
-cp env.example .env
+cp .env.example .env
 nano .env
 # Ajustar VITE_API_URL e APP_FRONTEND_URL com IP da VPS
 
@@ -191,15 +309,65 @@ docker compose up -d --build
 curl http://seu-ip:8080/auth/login
 ```
 
-### 2. Configuração com HTTPS (Produção)
+---
 
-**Pré-requisito**: Ter um domínio configurado
+### 🌐 Configurar Nginx Reverse Proxy (Recomendado)
+
+**1. Instalar Nginx**
+```bash
+sudo apt update
+sudo apt install nginx -y
+```
+
+**2. Configurar site**
+```bash
+sudo cp nginx-vps.conf /etc/nginx/sites-available/cp-sys
+sudo nano /etc/nginx/sites-available/cp-sys
+# Ajustar server_name com seu domínio
+
+sudo ln -s /etc/nginx/sites-available/cp-sys /etc/nginx/sites-enabled/
+sudo rm /etc/nginx/sites-enabled/default  # Remover configuração padrão
+```
+
+**3. Testar e ativar**
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+**4. Configurar Firewall**
+```bash
+sudo ufw allow 'Nginx Full'
+sudo ufw allow OpenSSH
+sudo ufw enable
+```
+
+---
+
+### 🔒 Configurar HTTPS com Let's Encrypt
+
+**Pré-requisito**: Ter um domínio apontando para o IP da VPS
 
 ```bash
-# Opção Automática
-sudo ./setup-https.sh
+# Instalar Certbot
+sudo apt install certbot python3-certbot-nginx -y
 
-# OU Opção Manual
+# Obter certificado SSL
+sudo certbot --nginx -d seudominio.com -d www.seudominio.com
+
+# Renovação automática (já configurado pelo Certbot)
+sudo certbot renew --dry-run
+```
+
+Depois de obter o certificado:
+1. Edite o arquivo `/etc/nginx/sites-available/cp-sys`
+2. Descomente a seção HTTPS
+3. Ajuste os caminhos dos certificados
+4. Recarregue o Nginx: `sudo systemctl reload nginx`
+
+**OU use o setup automático:**
+```bash
+sudo ./setup-https.sh
 # Veja: CONFIGURACAO-HTTPS.md
 ```
 
@@ -344,13 +512,59 @@ npm test
 
 ---
 
+## 🛠️ Script de Deploy
+
+O projeto inclui um script de deploy robusto com validação, backup e rollback automático.
+
+### Uso
+
+```bash
+# Deploy completo (padrão)
+./deploy.sh
+
+# Apenas criar backup
+./deploy.sh backup
+
+# Rollback para última versão
+./deploy.sh rollback
+
+# Limpeza de recursos
+./deploy.sh cleanup
+```
+
+### Funcionalidades
+
+- ✅ Validação de pré-requisitos (Docker, Docker Compose)
+- ✅ Backup automático do `.env` e banco de dados
+- ✅ Git pull automático
+- ✅ Merge seguro de variáveis de ambiente
+- ✅ Health checks após deploy
+- ✅ Rollback automático em caso de falha
+- ✅ Limpeza de imagens antigas
+- ✅ Logs detalhados em `deploy.log`
+
+### Logs de Deploy
+
+```bash
+# Ver logs do último deploy
+tail -f deploy.log
+
+# Ver todos os backups disponíveis
+ls -lh backups/
+```
+
+---
+
 ## 📦 Backup e Restore
 
 ### Backup do Banco
 
 ```bash
-# Backup
+# Backup manual
 docker compose exec postgres pg_dump -U gustavo cobranca > backup.sql
+
+# Backup automático (via deploy script)
+./deploy.sh backup
 
 # Restore
 docker compose exec -T postgres psql -U gustavo cobranca < backup.sql
@@ -367,6 +581,17 @@ docker run --rm -v cp-sys_postgres_data:/data -v $(pwd):/backup ubuntu tar czf /
 
 # Restore
 docker run --rm -v cp-sys_postgres_data:/data -v $(pwd):/backup ubuntu tar xzf /backup/postgres_backup.tar.gz -C /
+```
+
+### Backups Automatizados
+
+Configure um cron job para backups diários:
+```bash
+# Editar crontab
+crontab -e
+
+# Adicionar linha (backup diário às 2h da manhã)
+0 2 * * * cd /home/$USER/projects/cp-sys && ./deploy.sh backup
 ```
 
 ---
@@ -418,15 +643,66 @@ docker compose up -d --build frontend
 
 ---
 
+## ⚡ CI/CD com GitHub Actions
+
+### Workflow Configurado
+
+O projeto possui um workflow GitHub Actions (`.github/workflows/deploy.yml`) que:
+
+1. É acionado automaticamente ao fazer push na branch `main`
+2. Pode ser executado manualmente via `workflow_dispatch`
+3. Conecta na VPS via SSH
+4. Atualiza o código
+5. Injeta secrets do GitHub
+6. Faz build e deploy dos containers
+7. Valida health checks
+8. Envia notificações de sucesso/falha
+
+### Executar Deploy Manualmente
+
+No GitHub:
+1. Vá em `Actions`
+2. Selecione `Deploy to VPS`
+3. Clique em `Run workflow`
+4. Selecione a branch `main`
+5. Clique em `Run workflow`
+
+### Monitorar Status
+
+```bash
+# Ver workflow runs
+https://github.com/SEU-USUARIO/cp-sys/actions
+
+# Ver logs em tempo real na VPS
+ssh usuario@vps-ip
+cd /home/$USER/projects/cp-sys
+docker compose logs -f
+```
+
+### Rollback Rápido
+
+Se um deploy falhar:
+```bash
+# Conectar na VPS
+ssh usuario@vps-ip
+
+# Executar rollback automático
+cd /home/$USER/projects/cp-sys
+./deploy.sh rollback
+```
+
+---
+
 ## 🎯 Próximos Passos
 
 1. ✅ ~~Implementar autenticação JWT~~ (Concluído)
 2. ✅ ~~Configurar Docker Compose~~ (Concluído)
-3. ⏳ **Configurar HTTPS** → Execute `./setup-https.sh`
-4. ⏳ Alterar senha admin
-5. ⏳ Configurar backups automáticos
-6. ⏳ Implementar recuperação de senha
-7. ⏳ Adicionar logs de auditoria
+3. ✅ ~~Configurar CI/CD com GitHub Actions~~ (Concluído)
+4. ⏳ **Configurar HTTPS** → Execute `./setup-https.sh`
+5. ⏳ Alterar senha admin
+6. ⏳ Configurar backups automáticos (cron job)
+7. ⏳ Implementar recuperação de senha
+8. ⏳ Adicionar logs de auditoria
 
 ---
 

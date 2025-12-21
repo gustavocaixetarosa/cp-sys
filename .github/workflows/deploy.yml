@@ -1,0 +1,166 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Add VPS to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          APP_FRONTEND_URL: ${{ secrets.APP_FRONTEND_URL }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          ssh -p $VPS_PORT $VPS_USER@$VPS_HOST << 'ENDSSH'
+            set -e
+            
+            echo "🚀 Starting deployment..."
+            
+            # Navigate to project directory
+            cd /home/$USER/projects/cp-sys || { echo "❌ Project directory not found"; exit 1; }
+            
+            # Pull latest code
+            echo "📦 Pulling latest code from GitHub..."
+            git fetch origin main
+            git reset --hard origin/main
+            
+            # Backup existing .env
+            if [ -f .env ]; then
+              echo "💾 Backing up existing .env..."
+              cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
+            fi
+            
+            # Update .env with secrets
+            echo "🔐 Updating environment variables..."
+            cat > .env.secrets << EOF
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          APP_FRONTEND_URL=${{ secrets.APP_FRONTEND_URL }}
+          VITE_API_URL=${{ secrets.VITE_API_URL }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          EOF
+            
+            # Merge .env files (keep existing non-sensitive vars, override with secrets)
+            if [ -f .env ]; then
+              # Remove old secret values and append new ones
+              grep -v "POSTGRES_PASSWORD\|APP_FRONTEND_URL\|VITE_API_URL\|JWT_SECRET" .env > .env.tmp || true
+              cat .env.tmp .env.secrets > .env.new
+              mv .env.new .env
+              rm .env.tmp .env.secrets
+            else
+              mv .env.secrets .env
+            fi
+            
+            # Stop existing containers
+            echo "🛑 Stopping existing containers..."
+            docker-compose down || true
+            
+            # Clean up old images
+            echo "🧹 Cleaning up old Docker images..."
+            docker image prune -f || true
+            
+            # Build and start containers
+            echo "🏗️  Building and starting containers..."
+            docker-compose up -d --build
+            
+            # Wait for containers to be healthy
+            echo "⏳ Waiting for containers to be healthy..."
+            sleep 10
+            
+            # Check container health
+            echo "🔍 Checking container health..."
+            if docker-compose ps | grep -q "Up"; then
+              echo "✅ Containers are running"
+              
+              # Check if backend is responding
+              echo "🔍 Checking backend health..."
+              for i in {1..30}; do
+                if curl -f http://localhost:8080/actuator/health > /dev/null 2>&1; then
+                  echo "✅ Backend is healthy"
+                  break
+                elif [ $i -eq 30 ]; then
+                  echo "❌ Backend health check failed"
+                  docker-compose logs backend
+                  exit 1
+                fi
+                echo "⏳ Waiting for backend... (attempt $i/30)"
+                sleep 2
+              done
+              
+              # Check if frontend is responding
+              echo "🔍 Checking frontend health..."
+              if curl -f http://localhost:8081 > /dev/null 2>&1; then
+                echo "✅ Frontend is healthy"
+              else
+                echo "⚠️  Frontend health check warning (might need Nginx configuration)"
+              fi
+              
+              echo "✅ Deployment completed successfully!"
+            else
+              echo "❌ Containers failed to start"
+              docker-compose logs
+              exit 1
+            fi
+            
+            # Show running containers
+            echo "📊 Running containers:"
+            docker-compose ps
+          ENDSSH
+
+      - name: Deployment Status
+        if: always()
+        run: |
+          if [ ${{ job.status }} == 'success' ]; then
+            echo "✅ Deployment completed successfully!"
+          else
+            echo "❌ Deployment failed!"
+            exit 1
+          fi
+
+      - name: Send notification (optional)
+        if: always() && (secrets.DISCORD_WEBHOOK != '' || secrets.SLACK_WEBHOOK != '')
+        run: |
+          STATUS="${{ job.status }}"
+          if [ "$STATUS" == "success" ]; then
+            MESSAGE="✅ Deployment to VPS completed successfully!"
+            COLOR="3066993"
+          else
+            MESSAGE="❌ Deployment to VPS failed!"
+            COLOR="15158332"
+          fi
+          
+          # Discord webhook (if configured)
+          if [ -n "${{ secrets.DISCORD_WEBHOOK }}" ]; then
+            curl -H "Content-Type: application/json" \
+              -d "{\"embeds\": [{\"title\": \"CP-SYS Deployment\", \"description\": \"$MESSAGE\", \"color\": $COLOR}]}" \
+              ${{ secrets.DISCORD_WEBHOOK }}
+          fi
+          
+          # Slack webhook (if configured)
+          if [ -n "${{ secrets.SLACK_WEBHOOK }}" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{\"text\":\"$MESSAGE\"}" \
+              ${{ secrets.SLACK_WEBHOOK }}
+          fi
