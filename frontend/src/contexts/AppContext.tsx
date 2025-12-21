@@ -228,55 +228,65 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const getContratosByCliente = (cliente_id: number): Contrato[] => {
     let filteredContratos = contratos.filter((c) => c.cliente_id === cliente_id);
 
-    // Apply payment status filter
-    if (filters.statusPagamento !== 'todos') {
-      filteredContratos = filteredContratos.filter((contrato) => {
-        const contratoPagamentos = pagamentos.filter((p) => p.contrato_id === contrato.contrato_id);
-        
-        if (filters.statusPagamento === 'ATRASADO') {
-          // Contract has at least one overdue payment (ATRASADO or EM_ABERTO past due)
-          return contratoPagamentos.some((p) => pagamentoEstaAtrasado(p));
-        } else {
-          // Contract has at least one payment with the specified status
-          return contratoPagamentos.some((p) => p.status === filters.statusPagamento);
+    // Apply combined filters: both status and period must match the same payment
+    const hasStatusFilter = filters.statusPagamento !== 'todos';
+    const hasPeriodFilter = filters.periodo !== 'todos';
+
+    if (hasStatusFilter || hasPeriodFilter) {
+      // Calculate period range if needed
+      let startDate: Date | null = null;
+      let endDate: Date | null = null;
+
+      if (hasPeriodFilter) {
+        const hoje = new Date();
+        endDate = hoje;
+
+        switch (filters.periodo) {
+          case 'mes_atual':
+            startDate = startOfMonth(hoje);
+            endDate = endOfMonth(hoje);
+            break;
+          case 'mes_passado':
+            startDate = startOfMonth(subMonths(hoje, 1));
+            endDate = endOfMonth(subMonths(hoje, 1));
+            break;
+          case 'ultimos_3_meses':
+            startDate = startOfMonth(subMonths(hoje, 2));
+            endDate = endOfMonth(hoje);
+            break;
+          case 'ano_atual':
+            startDate = startOfYear(hoje);
+            endDate = endOfMonth(hoje);
+            break;
+          default:
+            startDate = new Date(0);
         }
-      });
-    }
-
-    // Apply period filter
-    if (filters.periodo !== 'todos') {
-      const hoje = new Date();
-      let startDate: Date;
-      let endDate: Date = hoje;
-
-      switch (filters.periodo) {
-        case 'mes_atual':
-          startDate = startOfMonth(hoje);
-          endDate = endOfMonth(hoje);
-          break;
-        case 'mes_passado':
-          startDate = startOfMonth(subMonths(hoje, 1));
-          endDate = endOfMonth(subMonths(hoje, 1));
-          break;
-        case 'ultimos_3_meses':
-          startDate = startOfMonth(subMonths(hoje, 2));
-          endDate = endOfMonth(hoje);
-          break;
-        case 'ano_atual':
-          startDate = startOfYear(hoje);
-          endDate = endOfMonth(hoje);
-          break;
-        default:
-          startDate = new Date(0);
       }
 
+      // Filter contracts where at least one payment matches ALL active filter criteria
       filteredContratos = filteredContratos.filter((contrato) => {
         const contratoPagamentos = pagamentos.filter((p) => p.contrato_id === contrato.contrato_id);
         
-        // Check if any payment falls within the period
         return contratoPagamentos.some((p) => {
-          const vencimento = parseISO(p.data_vencimento);
-          return vencimento >= startDate && vencimento <= endDate;
+          // Check status filter
+          let matchesStatus = true;
+          if (hasStatusFilter) {
+            if (filters.statusPagamento === 'ATRASADO') {
+              matchesStatus = pagamentoEstaAtrasado(p);
+            } else {
+              matchesStatus = p.status === filters.statusPagamento;
+            }
+          }
+
+          // Check period filter
+          let matchesPeriod = true;
+          if (hasPeriodFilter && startDate && endDate) {
+            const vencimento = parseISO(p.data_vencimento);
+            matchesPeriod = vencimento >= startDate && vencimento <= endDate;
+          }
+
+          // Payment must match ALL active filters
+          return matchesStatus && matchesPeriod;
         });
       });
     }
