@@ -138,29 +138,3 @@ jobs:
             echo "❌ Deployment failed!"
             exit 1
           fi
-
-      - name: Send notification (optional)
-        if: always() && (secrets.DISCORD_WEBHOOK != '' || secrets.SLACK_WEBHOOK != '')
-        run: |
-          STATUS="${{ job.status }}"
-          if [ "$STATUS" == "success" ]; then
-            MESSAGE="✅ Deployment to VPS completed successfully!"
-            COLOR="3066993"
-          else
-            MESSAGE="❌ Deployment to VPS failed!"
-            COLOR="15158332"
-          fi
-          
-          # Discord webhook (if configured)
-          if [ -n "${{ secrets.DISCORD_WEBHOOK }}" ]; then
-            curl -H "Content-Type: application/json" \
-              -d "{\"embeds\": [{\"title\": \"CP-SYS Deployment\", \"description\": \"$MESSAGE\", \"color\": $COLOR}]}" \
-              ${{ secrets.DISCORD_WEBHOOK }}
-          fi
-          
-          # Slack webhook (if configured)
-          if [ -n "${{ secrets.SLACK_WEBHOOK }}" ]; then
-            curl -X POST -H 'Content-type: application/json' \
-              --data "{\"text\":\"$MESSAGE\"}" \
-              ${{ secrets.SLACK_WEBHOOK }}
-          fi
