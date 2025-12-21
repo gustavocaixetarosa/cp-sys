@@ -33,7 +33,7 @@ jobs:
             echo "🚀 Starting deployment..."
             
             # Navigate to project directory
-            cd /home/$USER/projects/cp-sys || { echo "❌ Project directory not found"; exit 1; }
+            cd ~/projects/cp-sys || cd /root/projects/cp-sys || { echo "❌ Project directory not found"; exit 1; }
             
             # Pull latest code
             echo "📦 Pulling latest code from GitHub..."
