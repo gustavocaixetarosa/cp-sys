@@ -109,12 +109,12 @@ const ReportGenerator: React.FC = () => {
   };
 
   return (
-    <Box p={6} bg="white" borderRadius="2xl" boxShadow="sm" border="1px solid" borderColor="gray.100">
+    <Box p={{ base: 4, md: 6 }} bg="white" borderRadius="2xl" boxShadow="sm" border="1px solid" borderColor="gray.100" mb={8}>
       <VStack spacing={6} align="stretch">
         {/* Header */}
         <HStack spacing={3}>
           <Icon as={FiFileText} boxSize={6} color="blue.500" />
-          <Heading size="md" color="gray.800">
+          <Heading size={{ base: "sm", md: "md" }} color="gray.800">
             Gerador de Relatórios
           </Heading>
         </HStack>

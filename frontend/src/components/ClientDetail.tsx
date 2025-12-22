@@ -91,29 +91,29 @@ const ClientDetail = () => {
   };
 
   return (
-    <Box>
+    <Box pb={6}>
       <VStack align="stretch" spacing={6}>
         {/* Header Card */}
-        <Box bg="white" p={6} borderRadius="2xl" boxShadow="sm">
-          <Flex justify="space-between" align="start" mb={6}>
+        <Box bg="white" p={{ base: 4, md: 6 }} borderRadius="2xl" boxShadow="sm">
+          <Flex justify="space-between" align="start" mb={6} direction={{ base: "column", md: "row" }} gap={4}>
             <HStack spacing={4}>
-              <Avatar size="lg" name={selectedCliente.nome} bg="blue.500" />
+              <Avatar size={{ base: "md", md: "lg" }} name={selectedCliente.nome} bg="blue.500" />
               <Box>
-                <Heading size="md" mb={1} color="gray.800">{selectedCliente.nome}</Heading>
-                <HStack spacing={4} color="gray.500" fontSize="sm">
+                <Heading size={{ base: "sm", md: "md" }} mb={1} color="gray.800">{selectedCliente.nome}</Heading>
+                <HStack spacing={4} color="gray.500" fontSize="sm" flexWrap="wrap">
                   <HStack>
                     <Icon viewBox="0 0 24 24" fill="currentColor" boxSize={4}>
                       <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" />
                     </Icon>
                     <Text>{selectedCliente.telefone}</Text>
                   </HStack>
-                  <Text>•</Text>
+                  <Text display={{ base: "none", md: "block" }}>•</Text>
                   <Text>{selectedCliente.registro}</Text>
                 </HStack>
               </Box>
             </HStack>
 
-            <HStack>
+            <HStack flexWrap="wrap">
               <Button
                 leftIcon={<DownloadIcon />}
                 colorScheme="gray"
@@ -121,7 +121,7 @@ const ClientDetail = () => {
                 size="sm"
                 onClick={handleGenerateReport}
               >
-                Relatório
+                <Text display={{ base: "none", md: "inline" }}>Relatório</Text>
               </Button>
               <Button
                 leftIcon={<EditIcon />}
@@ -130,7 +130,7 @@ const ClientDetail = () => {
                 size="sm"
                 onClick={onEditOpen}
               >
-                Editar
+                <Text display={{ base: "none", md: "inline" }}>Editar</Text>
               </Button>
               <Button
                 leftIcon={<DeleteIcon />}
@@ -139,12 +139,12 @@ const ClientDetail = () => {
                 size="sm"
                 onClick={onDeleteOpen}
               >
-                Excluir
+                <Text display={{ base: "none", md: "inline" }}>Excluir</Text>
               </Button>
             </HStack>
           </Flex>
 
-          <Grid templateColumns="repeat(2, 1fr)" gap={6} mb={4}>
+          <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={6} mb={4}>
              <Box>
                 <Text fontSize="xs" textTransform="uppercase" fontWeight="bold" color="gray.400" mb={1}>Endereço</Text>
                 <Text fontSize="sm" color="gray.700">{selectedCliente.endereco}</Text>
@@ -155,7 +155,7 @@ const ClientDetail = () => {
              </Box>
           </Grid>
 
-          <SimpleGrid columns={2} spacing={4} mt={6}>
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mt={6}>
             <Stat bg="blue.50" p={4} borderRadius="xl">
               <StatLabel color="blue.600" fontWeight="medium">Total a Receber</StatLabel>
               <StatNumber color="blue.700" fontSize="2xl">
@@ -218,7 +218,15 @@ const ClientDetail = () => {
         </Box>
 
         {/* Contracts Section */}
-        <Box bg="white" p={6} borderRadius="2xl" boxShadow="sm">
+        <Box 
+          bg="white" 
+          borderRadius="2xl" 
+          boxShadow="sm" 
+          maxH={{ base: "500px", md: "600px" }}
+          display="flex"
+          flexDirection="column"
+          overflow="hidden"
+        >
           <ContractList />
         </Box>
       </VStack>
