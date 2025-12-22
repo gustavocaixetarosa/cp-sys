@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Button,
@@ -16,7 +16,6 @@ import {
   StatHelpText,
   SimpleGrid,
   useToast,
-  Spinner,
   Card,
   CardHeader,
   CardBody,
@@ -32,6 +31,7 @@ import { format } from 'date-fns';
 const ReportGenerator: React.FC = () => {
   const { clientes } = useApp();
   const toast = useToast();
+  const isMountedRef = useRef(true);
   
   const [isLoading, setIsLoading] = useState(false);
   const [reportData, setReportData] = useState<RelatorioResponse | null>(null);
@@ -40,6 +40,13 @@ const ReportGenerator: React.FC = () => {
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [clienteId, setClienteId] = useState<string>('');
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const handleGenerateReport = async () => {
     // Validation
@@ -66,6 +73,8 @@ const ReportGenerator: React.FC = () => {
     }
 
     setIsLoading(true);
+    setReportData(null); // Clear previous report data
+    
     try {
       const request: RelatorioRequest = {
         dataInicio,
@@ -74,26 +83,35 @@ const ReportGenerator: React.FC = () => {
       };
 
       const response = await relatorioService.gerar(request);
-      setReportData(response);
       
-      toast({
-        title: 'Relatório gerado',
-        description: 'O relatório foi gerado com sucesso.',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setReportData(response);
+        
+        toast({
+          title: 'Relatório gerado',
+          description: 'O relatório foi gerado com sucesso.',
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
     } catch (error) {
       console.error('Erro ao gerar relatório:', error);
-      toast({
-        title: 'Erro ao gerar relatório',
-        description: 'Não foi possível gerar o relatório. Tente novamente.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+      
+      if (isMountedRef.current) {
+        toast({
+          title: 'Erro ao gerar relatório',
+          description: 'Não foi possível gerar o relatório. Tente novamente.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -178,18 +196,18 @@ const ReportGenerator: React.FC = () => {
         </Button>
 
         {/* Report Results */}
-        {reportData && (
+        {reportData && !isLoading && (
           <>
             <Divider />
 
             <Card bg="blue.50" borderRadius="xl">
               <CardHeader pb={2}>
                 <Heading size="sm" color="blue.800">
-                  Período: {format(new Date(reportData.dataInicio), 'dd/MM/yyyy')} até{' '}
-                  {format(new Date(reportData.dataFim), 'dd/MM/yyyy')}
+                  Período: {format(new Date(reportData.dataInicio + 'T00:00:00'), 'dd/MM/yyyy')} até{' '}
+                  {format(new Date(reportData.dataFim + 'T00:00:00'), 'dd/MM/yyyy')}
                 </Heading>
                 <Text fontSize="sm" color="blue.600" mt={1}>
-                  {reportData.nomeCliente}
+                  {reportData.nomeCliente || 'Todos os clientes'}
                 </Text>
               </CardHeader>
               <CardBody pt={2}>
@@ -317,15 +335,6 @@ const ReportGenerator: React.FC = () => {
               </CardBody>
             </Card>
           </>
-        )}
-
-        {isLoading && (
-          <Box textAlign="center" py={8}>
-            <Spinner size="xl" color="blue.500" thickness="4px" />
-            <Text mt={4} color="gray.600">
-              Gerando relatório...
-            </Text>
-          </Box>
         )}
       </VStack>
     </Box>
