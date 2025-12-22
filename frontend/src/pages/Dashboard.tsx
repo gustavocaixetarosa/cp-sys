@@ -13,7 +13,7 @@ const Dashboard = () => {
   return (
     <Flex h="100vh" bg="#f3f4f6" overflow="hidden">
       {/* Sidebar (Navigation) - Simplificado para este exemplo */}
-      <Box w="70px" bg="white" borderRight="1px solid" borderColor="gray.100" py={6} display="flex" flexDirection="column" alignItems="center" justifyContent="space-between" boxShadow="sm" zIndex={10}>
+      <Box w={{ base: "60px", md: "70px" }} bg="white" borderRight="1px solid" borderColor="gray.100" py={6} display="flex" flexDirection="column" alignItems="center" justifyContent="space-between" boxShadow="sm" zIndex={10}>
         <Flex direction="column" align="center" gap={8}>
           <Box p={2} bg="blue.500" borderRadius="xl" color="white">
             <Icon viewBox="0 0 24 24" boxSize={6} fill="currentColor">
@@ -48,34 +48,42 @@ const Dashboard = () => {
 
       <Flex flex={1} direction="column" overflow="hidden">
         {/* Header Minimalista */}
-        <Flex px={8} py={4} bg="white" borderBottom="1px solid" borderColor="gray.100" align="center" justify="space-between">
+        <Flex px={{ base: 4, md: 8 }} py={4} bg="white" borderBottom="1px solid" borderColor="gray.100" align="center" justify="space-between">
           <Box>
-            <Heading size="md" color="gray.800" fontWeight="600">Dashboard</Heading>
-            <Text fontSize="sm" color="gray.500">Bem-vindo ao CP Acessoria</Text>
+            <Heading size={{ base: "sm", md: "md" }} color="gray.800" fontWeight="600">Dashboard</Heading>
+            <Text fontSize="sm" color="gray.500" display={{ base: "none", md: "block" }}>Bem-vindo ao CP Acessoria</Text>
           </Box>
           <HStack spacing={4}>
-            <Text fontSize="sm" fontWeight="500" color="gray.600">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
+            <Text fontSize="sm" fontWeight="500" color="gray.600" display={{ base: "none", md: "block" }}>{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
           </HStack>
         </Flex>
 
         {/* Main Content with Tabs */}
-        <Flex flex={1} p={6} gap={6} overflow="hidden" direction="column">
-          <Tabs colorScheme="blue" variant="soft-rounded">
-            <TabList bg="white" p={2} borderRadius="xl" boxShadow="sm" border="1px solid" borderColor="gray.100">
-              <Tab fontWeight="600">Dashboard</Tab>
-              <Tab fontWeight="600">
-                <Icon as={FiFileText} mr={2} />
-                Relatórios
-              </Tab>
-            </TabList>
+        <Box flex={1} overflow="hidden" display="flex" flexDirection="column">
+          <Tabs colorScheme="blue" variant="soft-rounded" display="flex" flexDirection="column" flex={1} overflow="hidden">
+            <Box px={{ base: 4, md: 6 }} pt={{ base: 4, md: 6 }}>
+              <TabList bg="white" p={2} borderRadius="xl" boxShadow="sm" border="1px solid" borderColor="gray.100">
+                <Tab fontWeight="600">Dashboard</Tab>
+                <Tab fontWeight="600">
+                  <Icon as={FiFileText} mr={2} />
+                  Relatórios
+                </Tab>
+              </TabList>
+            </Box>
 
-            <TabPanels flex={1} overflow="hidden" mt={4}>
+            <TabPanels flex={1} overflow="hidden">
               {/* Dashboard Tab */}
-              <TabPanel p={0} h="100%" display="flex" overflow="hidden">
-                <Flex flex={1} gap={6} overflow="hidden">
+              <TabPanel p={{ base: 4, md: 6 }} h="100%" display="flex" flexDirection="column" overflow="hidden">
+                <Flex 
+                  flex={1} 
+                  gap={{ base: 4, md: 6 }} 
+                  overflow="hidden"
+                  direction={{ base: "column", lg: "row" }}
+                >
                   {/* Left Column - Client List */}
                   <Box 
-                    w="320px" 
+                    w={{ base: "100%", lg: "320px" }} 
+                    h={{ base: "300px", lg: "100%" }}
                     bg="white" 
                     borderRadius="2xl" 
                     boxShadow="sm" 
@@ -92,28 +100,23 @@ const Dashboard = () => {
                   <Box 
                     flex={1} 
                     bg="transparent" 
-                    overflow="hidden" 
+                    overflow="auto" 
                     display="flex" 
                     flexDirection="column"
                     borderRadius="2xl"
+                    css={{
+                      '&::-webkit-scrollbar': { width: '6px' },
+                      '&::-webkit-scrollbar-track': { width: '8px', background: 'transparent' },
+                      '&::-webkit-scrollbar-thumb': { background: '#cbd5e0', borderRadius: '24px' },
+                    }}
                   >
-                    <Box 
-                      flex={1} 
-                      overflowY="auto" 
-                      pr={2} 
-                      css={{
-                        '&::-webkit-scrollbar': { width: '4px' },
-                        '&::-webkit-scrollbar-track': { width: '6px' },
-                        '&::-webkit-scrollbar-thumb': { background: '#cbd5e0', borderRadius: '24px' },
-                      }}
-                    >
-                      <ClientDetail />
-                    </Box>
+                    <ClientDetail />
                   </Box>
 
                   {/* Right Column - Payments */}
                   <Box 
-                    w="360px" 
+                    w={{ base: "100%", lg: "360px" }} 
+                    h={{ base: "400px", lg: "100%" }}
                     bg="white" 
                     borderRadius="2xl" 
                     boxShadow="sm" 
@@ -129,13 +132,14 @@ const Dashboard = () => {
               </TabPanel>
 
               {/* Reports Tab */}
-              <TabPanel p={0} h="100%" overflow="auto">
+              <TabPanel p={{ base: 4, md: 6 }} h="100%" overflow="auto" pb={8}>
                 <Box 
                   maxW="1200px" 
                   mx="auto"
+                  pb={8}
                   css={{
-                    '&::-webkit-scrollbar': { width: '4px' },
-                    '&::-webkit-scrollbar-track': { width: '6px' },
+                    '&::-webkit-scrollbar': { width: '6px' },
+                    '&::-webkit-scrollbar-track': { width: '8px', background: 'transparent' },
                     '&::-webkit-scrollbar-thumb': { background: '#cbd5e0', borderRadius: '24px' },
                   }}
                 >
@@ -144,7 +148,7 @@ const Dashboard = () => {
               </TabPanel>
             </TabPanels>
           </Tabs>
-        </Flex>
+        </Box>
       </Flex>
     </Flex>
   );
