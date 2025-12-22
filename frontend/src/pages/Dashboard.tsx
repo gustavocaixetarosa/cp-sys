@@ -1,10 +1,11 @@
-import { Box, Flex, Heading, Text, HStack, Icon, Avatar, Menu, MenuButton, MenuList, MenuItem, MenuDivider } from '@chakra-ui/react';
+import { Box, Flex, Heading, Text, HStack, Icon, Avatar, Menu, MenuButton, MenuList, MenuItem, MenuDivider, Tabs, TabList, TabPanels, Tab, TabPanel } from '@chakra-ui/react';
 import { SettingsIcon, BellIcon } from '@chakra-ui/icons';
-import { FiLogOut, FiUser } from 'react-icons/fi';
+import { FiLogOut, FiUser, FiFileText } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 import ClientList from '../components/ClientList';
 import ClientDetail from '../components/ClientDetail';
 import PaymentList from '../components/PaymentList';
+import ReportGenerator from '../components/ReportGenerator';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -57,60 +58,92 @@ const Dashboard = () => {
           </HStack>
         </Flex>
 
-        {/* Main Content Grid */}
-        <Flex flex={1} p={6} gap={6} overflow="hidden">
-          {/* Left Column - Client List */}
-          <Box 
-            w="320px" 
-            bg="white" 
-            borderRadius="2xl" 
-            boxShadow="sm" 
-            overflow="hidden" 
-            display="flex" 
-            flexDirection="column"
-            border="1px solid"
-            borderColor="gray.100"
-          >
-            <ClientList />
-          </Box>
+        {/* Main Content with Tabs */}
+        <Flex flex={1} p={6} gap={6} overflow="hidden" direction="column">
+          <Tabs colorScheme="blue" variant="soft-rounded">
+            <TabList bg="white" p={2} borderRadius="xl" boxShadow="sm" border="1px solid" borderColor="gray.100">
+              <Tab fontWeight="600">Dashboard</Tab>
+              <Tab fontWeight="600">
+                <Icon as={FiFileText} mr={2} />
+                Relatórios
+              </Tab>
+            </TabList>
 
-          {/* Middle Column - Client Detail */}
-          <Box 
-            flex={1} 
-            bg="transparent" 
-            overflow="hidden" 
-            display="flex" 
-            flexDirection="column"
-            borderRadius="2xl"
-          >
-            <Box 
-              flex={1} 
-              overflowY="auto" 
-              pr={2} 
-              css={{
-                '&::-webkit-scrollbar': { width: '4px' },
-                '&::-webkit-scrollbar-track': { width: '6px' },
-                '&::-webkit-scrollbar-thumb': { background: '#cbd5e0', borderRadius: '24px' },
-              }}
-            >
-              <ClientDetail />
-            </Box>
-          </Box>
+            <TabPanels flex={1} overflow="hidden" mt={4}>
+              {/* Dashboard Tab */}
+              <TabPanel p={0} h="100%" display="flex" overflow="hidden">
+                <Flex flex={1} gap={6} overflow="hidden">
+                  {/* Left Column - Client List */}
+                  <Box 
+                    w="320px" 
+                    bg="white" 
+                    borderRadius="2xl" 
+                    boxShadow="sm" 
+                    overflow="hidden" 
+                    display="flex" 
+                    flexDirection="column"
+                    border="1px solid"
+                    borderColor="gray.100"
+                  >
+                    <ClientList />
+                  </Box>
 
-          {/* Right Column - Payments */}
-          <Box 
-            w="360px" 
-            bg="white" 
-            borderRadius="2xl" 
-            boxShadow="sm" 
-            overflow="hidden" 
-            display="flex" 
-            flexDirection="column"
-            border="1px solid"
-            borderColor="gray.100"
-          >
-            <PaymentList />
-          </Box>
+                  {/* Middle Column - Client Detail */}
+                  <Box 
+                    flex={1} 
+                    bg="transparent" 
+                    overflow="hidden" 
+                    display="flex" 
+                    flexDirection="column"
+                    borderRadius="2xl"
+                  >
+                    <Box 
+                      flex={1} 
+                      overflowY="auto" 
+                      pr={2} 
+                      css={{
+                        '&::-webkit-scrollbar': { width: '4px' },
+                        '&::-webkit-scrollbar-track': { width: '6px' },
+                        '&::-webkit-scrollbar-thumb': { background: '#cbd5e0', borderRadius: '24px' },
+                      }}
+                    >
+                      <ClientDetail />
+                    </Box>
+                  </Box>
+
+                  {/* Right Column - Payments */}
+                  <Box 
+                    w="360px" 
+                    bg="white" 
+                    borderRadius="2xl" 
+                    boxShadow="sm" 
+                    overflow="hidden" 
+                    display="flex" 
+                    flexDirection="column"
+                    border="1px solid"
+                    borderColor="gray.100"
+                  >
+                    <PaymentList />
+                  </Box>
+                </Flex>
+              </TabPanel>
+
+              {/* Reports Tab */}
+              <TabPanel p={0} h="100%" overflow="auto">
+                <Box 
+                  maxW="1200px" 
+                  mx="auto"
+                  css={{
+                    '&::-webkit-scrollbar': { width: '4px' },
+                    '&::-webkit-scrollbar-track': { width: '6px' },
+                    '&::-webkit-scrollbar-thumb': { background: '#cbd5e0', borderRadius: '24px' },
+                  }}
+                >
+                  <ReportGenerator />
+                </Box>
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
         </Flex>
       </Flex>
     </Flex>

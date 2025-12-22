@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Cliente, Contrato, Pagamento, CreateClienteDTO, CreateContratoDTO, UpdateContratoDTO, UpdatePagamentoDTO } from '../types';
+import type { Cliente, Contrato, Pagamento, CreateClienteDTO, CreateContratoDTO, UpdateContratoDTO, UpdatePagamentoDTO, RelatorioRequest, RelatorioResponse } from '../types';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
@@ -162,6 +162,13 @@ export const pagamentoService = {
 
   update: async (id: number, pagamento: UpdatePagamentoDTO): Promise<Pagamento> => {
     const response = await api.put<Pagamento>(`/pagamentos/${Number(id)}`, pagamento);
+    return response.data;
+  }
+};
+
+export const relatorioService = {
+  gerar: async (request: RelatorioRequest): Promise<RelatorioResponse> => {
+    const response = await api.post<RelatorioResponse>('/relatorios', request);
     return response.data;
   }
 };

@@ -70,3 +70,26 @@ export interface CreateClienteDTO {
   banco: string;
   dataContrato?: string; // Backend aceita isso no POST
 }
+
+export interface RelatorioRequest {
+  dataInicio: string; // yyyy-MM-dd
+  dataFim: string; // yyyy-MM-dd
+  clienteId?: number; // Optional: filter by specific client
+}
+
+export interface RelatorioResponse {
+  dataInicio: string;
+  dataFim: string;
+  clienteId: number | null;
+  nomeCliente: string;
+  quantidadeInadimplentes: number;
+  percentualInadimplencia: number;
+  quantidadePagosAntecipados: number;
+  percentualPagosAntecipados: number;
+  valorTotalRecebido: number;
+  valorTotalEmAberto: number;
+  totalPagamentos: number;
+  quantidadePagos: number;
+  quantidadeAtrasados: number;
+  quantidadeEmAberto: number;
+}
