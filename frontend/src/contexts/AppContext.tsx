@@ -56,6 +56,7 @@ interface AppContextType {
   setPaymentFilters: (filters: Partial<PaymentFilters>) => void;
   clearPaymentFilters: () => void;
   filterByAtrasados: () => void;
+  isFilteringContratosAtrasados: boolean;
   contratoTemPagamentoAtrasado: (contrato_id: number) => boolean;
 
   // Statistics
@@ -81,6 +82,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [paymentFilters, setPaymentFiltersState] = useState<PaymentFilters>(defaultPaymentFilters);
+  const [filterContratosAtrasados, setFilterContratosAtrasados] = useState(false);
   const toast = useToast();
 
   // Load initial data
@@ -283,8 +285,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return false;
   };
 
+  // Check if contract has overdue payments
+  const contratoTemPagamentoAtrasado = (contrato_id: number): boolean => {
+    return pagamentos.some((p) => p.contrato_id === contrato_id && pagamentoEstaAtrasado(p));
+  };
+
   const getContratosByCliente = (cliente_id: number): Contrato[] => {
-    return contratos.filter((c: Contrato) => c.cliente_id === cliente_id);
+    let filtered = contratos.filter((c: Contrato) => c.cliente_id === cliente_id);
+    
+    // Se o filtro de contratos atrasados estiver ativo, mostrar apenas contratos com pagamentos atrasados
+    if (filterContratosAtrasados) {
+      filtered = filtered.filter((c: Contrato) => contratoTemPagamentoAtrasado(c.contrato_id));
+    }
+    
+    return filtered;
   };
 
   // Pagamento CRUD
@@ -366,10 +380,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const clearPaymentFilters = () => {
     setPaymentFiltersState(defaultPaymentFilters);
+    setFilterContratosAtrasados(false);
   };
 
   const filterByAtrasados = () => {
-    setPaymentFiltersState({ ...defaultPaymentFilters, status: 'ATRASADO' });
+    // Toggle do filtro de contratos com pagamentos atrasados
+    setFilterContratosAtrasados(!filterContratosAtrasados);
   };
 
   const marcarPagamentoComoPago = async (pagamento_id: number, data_pagamento: string) => {
@@ -409,11 +425,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         c.registro.toLowerCase().includes(term) ||
         c.telefone.toLowerCase().includes(term)
     );
-  };
-
-  // Check if contract has overdue payments
-  const contratoTemPagamentoAtrasado = (contrato_id: number): boolean => {
-    return pagamentos.some((p) => p.contrato_id === contrato_id && pagamentoEstaAtrasado(p));
   };
 
   // Statistics
@@ -493,6 +504,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPaymentFilters,
     clearPaymentFilters,
     filterByAtrasados,
+    isFilteringContratosAtrasados: filterContratosAtrasados,
     contratoTemPagamentoAtrasado,
     getTotalReceber,
     getTotalAtrasado,

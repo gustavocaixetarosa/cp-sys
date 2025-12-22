@@ -40,15 +40,15 @@ const ClientDetail = () => {
     getTotalAtrasado, 
     getContratosByCliente, 
     pagamentos,
-    paymentFilters,
     filterByAtrasados,
     clearPaymentFilters,
+    isFilteringContratosAtrasados,
   } = useApp();
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
   const cancelRef = useRef<HTMLButtonElement>(null);
   
-  const isFilteringAtrasados = paymentFilters.status === 'ATRASADO';
+  const isFilteringAtrasados = isFilteringContratosAtrasados;
 
   if (!selectedCliente) {
     return (
@@ -168,7 +168,7 @@ const ClientDetail = () => {
               </StatHelpText>
             </Stat>
 
-            <Tooltip label={isFilteringAtrasados ? "Clique para limpar filtro" : "Clique para filtrar pagamentos atrasados"}>
+            <Tooltip label={isFilteringAtrasados ? "Clique para limpar filtro" : "Clique para filtrar contratos com pagamentos atrasados"}>
               <Stat 
                 bg={isFilteringAtrasados ? "red.100" : "red.50"} 
                 p={4} 
