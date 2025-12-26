@@ -28,6 +28,10 @@ public class Pagamento {
     @JoinColumn(name = "contrato_id", nullable = false)
     private Contrato contrato;
     private Double valor;
+    private Double valorOriginal;
+    private Double valorAtualizado;
+    private Boolean multaAplicada;
+    private LocalDate dataUltimaAtualizacaoValor;
     private LocalDate dataVencimento;
     private LocalDate dataPagamento;
     @Enumerated(EnumType.STRING)

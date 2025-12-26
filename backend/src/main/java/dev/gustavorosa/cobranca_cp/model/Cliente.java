@@ -33,6 +33,9 @@ public class Cliente {
     @NotNull
     private String registro;
     private String banco;
+    
+    private Double taxaMulta;        // Ex: 0.02 = 2%
+    private Double taxaJurosMensal;  // Ex: 0.01 = 1% ao mês
 
     @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
@@ -47,6 +50,8 @@ public class Cliente {
         .dataVencimentoContrato(clienteDTO.dataContrato())
         .registro(clienteDTO.registro())
         .banco(clienteDTO.banco())
+        .taxaMulta(clienteDTO.taxaMulta())
+        .taxaJurosMensal(clienteDTO.taxaJurosMensal())
         .contratos(clienteDTO.contratos())
         .build();
     }

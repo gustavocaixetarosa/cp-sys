@@ -34,6 +34,8 @@ export interface Pagamento {
   pagamento_id: number;
   contrato_id: number;
   valor: number;
+  valor_original?: number;
+  valor_atualizado?: number;
   data_pagamento: string; // yyyy-MM-dd ou vazio
   data_vencimento: string; // yyyy-MM-dd
   numero_parcela: number;
@@ -60,6 +62,8 @@ export interface Cliente {
   telefone: string;
   data_vencimento?: string; // Backend parece não retornar isso na lista principal, verificar
   banco: string;
+  taxa_multa?: number;
+  taxa_juros_mensal?: number;
 }
 
 export interface CreateClienteDTO {
@@ -69,4 +73,6 @@ export interface CreateClienteDTO {
   registro: string;
   banco: string;
   dataContrato?: string; // Backend aceita isso no POST
+  taxaMulta?: number;
+  taxaJurosMensal?: number;
 }

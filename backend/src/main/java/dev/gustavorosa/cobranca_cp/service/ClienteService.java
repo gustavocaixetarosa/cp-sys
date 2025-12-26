@@ -49,6 +49,8 @@ public class ClienteService {
         if (clienteDTO.dataContrato() != null) {
             clienteExistente.setDataVencimentoContrato(clienteDTO.dataContrato());
         }
+        clienteExistente.setTaxaMulta(clienteDTO.taxaMulta());
+        clienteExistente.setTaxaJurosMensal(clienteDTO.taxaJurosMensal());
         
         return clienteRepository.save(clienteExistente);
     }
