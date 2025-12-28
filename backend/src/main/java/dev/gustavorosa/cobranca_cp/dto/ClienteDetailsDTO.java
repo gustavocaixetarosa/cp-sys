@@ -8,11 +8,14 @@ public record ClienteDetailsDTO(
         String endereco,
         String telefone,
         String registro,
-        String banco
+        String banco,
+        Double taxa_multa,
+        Double taxa_juros_mensal
 ) {
 
     public ClienteDetailsDTO(Cliente clienteRecuperado) {
         this(clienteRecuperado.getId(), clienteRecuperado.getNome(), clienteRecuperado.getEndereco(),
-                clienteRecuperado.getTelefone(), clienteRecuperado.getRegistro(), clienteRecuperado.getBanco());
+                clienteRecuperado.getTelefone(), clienteRecuperado.getRegistro(), clienteRecuperado.getBanco(),
+                clienteRecuperado.getTaxaMulta(), clienteRecuperado.getTaxaJurosMensal());
     }
 }

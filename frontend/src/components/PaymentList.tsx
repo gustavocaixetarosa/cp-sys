@@ -98,10 +98,15 @@ const PaymentList = () => {
     onOpen();
   };
 
+  // Helper para obter o valor efetivo do pagamento (atualizado ou original)
+  const getValorEfetivo = (p: Pagamento): number => {
+    return p.valor_atualizado || p.valor;
+  };
+
   // Calcular totais (usando todos os pagamentos, sem filtro)
   const totalPago = allPagamentos
     .filter((p: Pagamento) => p.status === 'PAGO' || p.status === 'PAGO_COM_ATRASO')
-    .reduce((sum: number, p: Pagamento) => sum + p.valor, 0);
+    .reduce((sum: number, p: Pagamento) => sum + getValorEfetivo(p), 0);
   
   const totalAtrasado = allPagamentos
     .filter((p: Pagamento) => {
@@ -112,7 +117,7 @@ const PaymentList = () => {
       }
       return false;
     })
-    .reduce((sum: number, p: Pagamento) => sum + p.valor, 0);
+    .reduce((sum: number, p: Pagamento) => sum + getValorEfetivo(p), 0);
   
   const totalAberto = allPagamentos
     .filter((p: Pagamento) => {
@@ -120,7 +125,7 @@ const PaymentList = () => {
       const vencimento = parseISO(p.data_vencimento);
       return !isBefore(vencimento, startOfDay(hoje));
     })
-    .reduce((sum: number, p: Pagamento) => sum + p.valor, 0);
+    .reduce((sum: number, p: Pagamento) => sum + getValorEfetivo(p), 0);
 
   const handleStatusFilterChange = (status: PaymentFilterStatus) => {
     setPaymentFilters({ status });
@@ -338,9 +343,35 @@ const PaymentList = () => {
                     </Box>
                     <Box textAlign="right">
                       <Text fontSize="xs" color="gray.500" mb={0.5}>Valor</Text>
-                      <Text fontWeight="700" color="gray.800">
-                        R$ {pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </Text>
+                      {pagamento.valor_original && pagamento.valor_atualizado && 
+                       pagamento.valor_atualizado > pagamento.valor_original ? (
+                        <Tooltip 
+                          label={`Valor original: R$ ${pagamento.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} + multa/juros`}
+                          placement="left"
+                        >
+                          <Box>
+                            <Text 
+                              fontSize="xs" 
+                              color="gray.400" 
+                              textDecoration="line-through"
+                            >
+                              R$ {pagamento.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </Text>
+                            <HStack spacing={1} justify="flex-end">
+                              <Text fontWeight="700" color="red.600">
+                                R$ {pagamento.valor_atualizado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </Text>
+                              <Badge colorScheme="red" fontSize="2xs" variant="subtle">
+                                +{((pagamento.valor_atualizado / pagamento.valor_original - 1) * 100).toFixed(1)}%
+                              </Badge>
+                            </HStack>
+                          </Box>
+                        </Tooltip>
+                      ) : (
+                        <Text fontWeight="700" color="gray.800">
+                          R$ {pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </Text>
+                      )}
                     </Box>
                   </Flex>
 

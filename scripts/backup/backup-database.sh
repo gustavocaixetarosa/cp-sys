@@ -6,9 +6,15 @@
 # Descrição:
 #   - Faz backup do banco de dados PostgreSQL usando pg_dump
 #   - Compacta o backup em .gz
-#   - Mantém os últimos 7 backups locais
-#   - Envia o backup para o Google Drive via rclone
+#   - Mantém os últimos 3 backups locais
+#   - Envia o backup para AWS S3
+#   - S3 Lifecycle Policy deleta automaticamente backups após 3 dias
 #   - Registra logs de execução
+#
+# Pré-requisitos:
+#   - AWS CLI instalado e configurado
+#   - Variáveis de ambiente AWS configuradas no .env
+#   - Bucket S3 criado com lifecycle policy de 3 dias
 #
 # Uso: ./backup-database.sh
 ##############################################################################
@@ -47,9 +53,9 @@ fi
 POSTGRES_CONTAINER="cobranca-postgres"
 
 # Configurações de backup
-BACKUP_RETENTION_DAYS=7  # Manter backups locais por 7 dias
-GDRIVE_REMOTE_NAME="gdrive"  # Nome configurado no rclone
-GDRIVE_BACKUP_PATH="Backups/cobranca-db"  # Pasta no Google Drive
+BACKUP_RETENTION_DAYS=3  # Manter backups locais por 3 dias
+S3_BACKUP_BUCKET="${S3_BACKUP_BUCKET:-cobranca-backups}"  # Bucket S3 (pode ser definido no .env)
+S3_BACKUP_PATH="backups"  # Prefixo/pasta no S3
 
 # Data e nome do arquivo
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
@@ -79,17 +85,28 @@ check_docker_container() {
     fi
 }
 
-check_rclone() {
-    if ! command -v rclone &> /dev/null; then
-        error "rclone não está instalado! Execute o script de instalação primeiro."
+check_aws_cli() {
+    if ! command -v aws &> /dev/null; then
+        error "AWS CLI não está instalado!"
+        error "Instale com: sudo apt-get install awscli (Ubuntu/Debian) ou brew install awscli (macOS)"
         exit 1
     fi
     
-    if ! rclone listremotes | grep -q "^${GDRIVE_REMOTE_NAME}:"; then
-        error "Remote '${GDRIVE_REMOTE_NAME}' não configurado no rclone!"
-        error "Execute: rclone config"
+    # Verificar se as credenciais AWS estão configuradas
+    if [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+        error "Credenciais AWS não configuradas!"
+        error "Configure AWS_ACCESS_KEY_ID e AWS_SECRET_ACCESS_KEY no arquivo .env"
         exit 1
     fi
+    
+    # Verificar se o bucket existe e é acessível
+    if ! aws s3 ls "s3://${S3_BACKUP_BUCKET}" &>/dev/null; then
+        error "Bucket S3 '${S3_BACKUP_BUCKET}' não existe ou não é acessível!"
+        error "Verifique as credenciais e permissões AWS"
+        exit 1
+    fi
+    
+    success "AWS CLI configurado corretamente"
 }
 
 create_backup() {
@@ -115,15 +132,27 @@ create_backup() {
     fi
 }
 
-upload_to_gdrive() {
-    log "☁️  Enviando backup para Google Drive..."
+upload_to_s3() {
+    log "☁️  Enviando backup para AWS S3..."
     
-    if rclone copy "${BACKUP_PATH}" "${GDRIVE_REMOTE_NAME}:${GDRIVE_BACKUP_PATH}" \
-        --progress --log-level INFO 2>&1 | tee -a "${LOG_FILE}"; then
-        success "Backup enviado para Google Drive: ${GDRIVE_BACKUP_PATH}/${BACKUP_FILENAME}"
-        return 0
+    local s3_key="${S3_BACKUP_PATH}/${BACKUP_FILENAME}"
+    
+    if aws s3 cp "${BACKUP_PATH}" "s3://${S3_BACKUP_BUCKET}/${s3_key}" \
+        --storage-class STANDARD_IA \
+        2>&1 | tee -a "${LOG_FILE}"; then
+        success "Backup enviado para S3: s3://${S3_BACKUP_BUCKET}/${s3_key}"
+        
+        # Verificar se o arquivo foi realmente enviado
+        if aws s3 ls "s3://${S3_BACKUP_BUCKET}/${s3_key}" &>/dev/null; then
+            local s3_size=$(aws s3 ls "s3://${S3_BACKUP_BUCKET}/${s3_key}" | awk '{print $3}')
+            success "Backup confirmado no S3 (${s3_size} bytes)"
+            return 0
+        else
+            error "Backup não encontrado no S3 após upload!"
+            return 1
+        fi
     else
-        error "Falha ao enviar backup para Google Drive!"
+        error "Falha ao enviar backup para S3!"
         return 1
     fi
 }
@@ -177,7 +206,7 @@ main() {
     
     # Verificações
     check_docker_container
-    check_rclone
+    check_aws_cli
     
     # Criar backup
     if ! create_backup; then
@@ -186,10 +215,10 @@ main() {
         exit 1
     fi
     
-    # Upload para Google Drive
-    if ! upload_to_gdrive; then
-        error "Processo de backup falhou no upload para Google Drive!"
-        send_notification "PARCIAL" "Backup criado localmente mas falhou upload para Drive"
+    # Upload para S3
+    if ! upload_to_s3; then
+        error "Processo de backup falhou no upload para S3!"
+        send_notification "PARCIAL" "Backup criado localmente mas falhou upload para S3"
         exit 1
     fi
     

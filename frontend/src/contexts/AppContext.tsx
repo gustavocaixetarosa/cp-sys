@@ -164,6 +164,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         registro: cliente.registro,
         banco: cliente.banco,
         dataContrato: cliente.data_vencimento,
+        taxaMulta: cliente.taxa_multa,
+        taxaJurosMensal: cliente.taxa_juros_mensal,
       };
       
       const updated = await clienteService.update(cliente.cliente_id, updateDTO);

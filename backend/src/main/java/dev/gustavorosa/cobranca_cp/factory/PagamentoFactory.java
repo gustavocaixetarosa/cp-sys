@@ -27,16 +27,19 @@ public class PagamentoFactory {
         Contrato contrato = contratoRepository.findById(dto.contrato_id())
                 .orElseThrow(() -> new RuntimeException("Contrato nao encontrado"));
 
-        return new Pagamento(
-                dto.contrato_id(),
-                contrato,
-                dto.valor(),
-                dataVencimento,
-                dataPagamento,
-                SituacaoPagamento.valueOf(dto.status()),
-                dto.observacao(),
-                dto.numero_parcela()
-        );
+        return Pagamento.builder()
+                .id(dto.pagamento_id())
+                .contrato(contrato)
+                .valor(dto.valor())
+                .valorOriginal(dto.valor_original() != null ? dto.valor_original() : dto.valor())
+                .valorAtualizado(dto.valor_atualizado() != null ? dto.valor_atualizado() : dto.valor())
+                .multaAplicada(false)
+                .dataVencimento(dataVencimento)
+                .dataPagamento(dataPagamento)
+                .status(SituacaoPagamento.valueOf(dto.status()))
+                .observacao(dto.observacao())
+                .numeroParcela(dto.numero_parcela())
+                .build();
     }
 
     private LocalDate converteDate(String s) {

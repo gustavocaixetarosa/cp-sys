@@ -34,6 +34,8 @@ interface ClientFormData {
   telefone: string;
   banco: string;
   dataContrato: string;
+  taxaMulta: string;
+  taxaJurosMensal: string;
 }
 
 const ClientFormModal = ({ isOpen, onClose, cliente }: ClientFormModalProps) => {
@@ -54,6 +56,8 @@ const ClientFormModal = ({ isOpen, onClose, cliente }: ClientFormModalProps) => 
       telefone: '',
       banco: '',
       dataContrato: new Date().toISOString().split('T')[0],
+      taxaMulta: '',
+      taxaJurosMensal: '',
     },
   });
 
@@ -66,6 +70,8 @@ const ClientFormModal = ({ isOpen, onClose, cliente }: ClientFormModalProps) => 
         telefone: cliente.telefone,
         banco: cliente.banco,
         dataContrato: '', // Cliente existente pode não ter esse dado retornado ou não ser editável
+        taxaMulta: cliente.taxa_multa ? (cliente.taxa_multa * 100).toString() : '',
+        taxaJurosMensal: cliente.taxa_juros_mensal ? (cliente.taxa_juros_mensal * 100).toString() : '',
       });
     } else {
       reset({
@@ -75,14 +81,25 @@ const ClientFormModal = ({ isOpen, onClose, cliente }: ClientFormModalProps) => 
         telefone: '',
         banco: '',
         dataContrato: new Date().toISOString().split('T')[0],
+        taxaMulta: '',
+        taxaJurosMensal: '',
       });
     }
   }, [cliente, reset]);
 
   const onSubmit = async (data: ClientFormData) => {
     try {
+      // Converter taxas de porcentagem para decimal (ex: 2% -> 0.02)
+      const taxaMultaDecimal = data.taxaMulta ? parseFloat(data.taxaMulta) / 100 : undefined;
+      const taxaJurosMensalDecimal = data.taxaJurosMensal ? parseFloat(data.taxaJurosMensal) / 100 : undefined;
+
       if (isEdit && cliente) {
-        await updateCliente({ ...cliente, ...data });
+        await updateCliente({ 
+          ...cliente, 
+          ...data,
+          taxa_multa: taxaMultaDecimal,
+          taxa_juros_mensal: taxaJurosMensalDecimal,
+        });
         toast({
           title: 'Cliente atualizado',
           description: 'O cliente foi atualizado com sucesso.',
@@ -92,7 +109,14 @@ const ClientFormModal = ({ isOpen, onClose, cliente }: ClientFormModalProps) => 
         });
       } else {
         const createDTO: CreateClienteDTO = {
-          ...data,
+          nome: data.nome,
+          endereco: data.endereco,
+          telefone: data.telefone,
+          registro: data.registro,
+          banco: data.banco,
+          dataContrato: data.dataContrato,
+          taxaMulta: taxaMultaDecimal,
+          taxaJurosMensal: taxaJurosMensalDecimal,
         };
         await addCliente(createDTO);
         toast({
@@ -229,6 +253,46 @@ const ClientFormModal = ({ isOpen, onClose, cliente }: ClientFormModalProps) => 
                     <FormErrorMessage>{errors.dataContrato?.message}</FormErrorMessage>
                   </FormControl>
                 )}
+              </SimpleGrid>
+
+              <SimpleGrid columns={2} spacing={5} w="100%">
+                <FormControl isInvalid={!!errors.taxaMulta}>
+                  <FormLabel fontSize="sm" color="gray.600" fontWeight="medium">Taxa de Multa (%)</FormLabel>
+                  <Input
+                    {...register('taxaMulta', {
+                      min: { value: 0, message: 'Taxa deve ser maior ou igual a 0' },
+                      max: { value: 100, message: 'Taxa deve ser menor ou igual a 100' },
+                    })}
+                    type="number"
+                    step="0.01"
+                    placeholder="Ex: 2 (para 2%)"
+                    size="lg"
+                    borderRadius="lg"
+                    bg="gray.50"
+                    border="none"
+                    _focus={{ bg: 'white', boxShadow: 'outline' }}
+                  />
+                  <FormErrorMessage>{errors.taxaMulta?.message}</FormErrorMessage>
+                </FormControl>
+
+                <FormControl isInvalid={!!errors.taxaJurosMensal}>
+                  <FormLabel fontSize="sm" color="gray.600" fontWeight="medium">Taxa de Juros Mensal (%)</FormLabel>
+                  <Input
+                    {...register('taxaJurosMensal', {
+                      min: { value: 0, message: 'Taxa deve ser maior ou igual a 0' },
+                      max: { value: 100, message: 'Taxa deve ser menor ou igual a 100' },
+                    })}
+                    type="number"
+                    step="0.01"
+                    placeholder="Ex: 1 (para 1% ao mês)"
+                    size="lg"
+                    borderRadius="lg"
+                    bg="gray.50"
+                    border="none"
+                    _focus={{ bg: 'white', boxShadow: 'outline' }}
+                  />
+                  <FormErrorMessage>{errors.taxaJurosMensal?.message}</FormErrorMessage>
+                </FormControl>
               </SimpleGrid>
             </VStack>
           </ModalBody>

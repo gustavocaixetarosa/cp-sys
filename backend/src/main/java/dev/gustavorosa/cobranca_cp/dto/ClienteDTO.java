@@ -15,6 +15,8 @@ public record ClienteDTO(
         LocalDate dataContrato,
         @NotBlank(message = "Cliente deve ter cpf ou cnpj") String registro,
         String banco,
+        Double taxaMulta,
+        Double taxaJurosMensal,
         List<Contrato> contratos
 ) {
     public ClienteDTO(Cliente novoCliente) {
@@ -26,6 +28,8 @@ public record ClienteDTO(
                 novoCliente.getDataVencimentoContrato(),
                 novoCliente.getRegistro(),
                 novoCliente.getBanco(),
+                novoCliente.getTaxaMulta(),
+                novoCliente.getTaxaJurosMensal(),
                 novoCliente.getContratos()
         );
     }
@@ -39,6 +43,8 @@ public record ClienteDTO(
         .dataVencimentoContrato(dataContrato())
         .registro(registro())
         .banco(banco())
+        .taxaMulta(taxaMulta())
+        .taxaJurosMensal(taxaJurosMensal())
         .contratos(contratos())
         .build();
     }

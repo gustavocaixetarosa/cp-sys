@@ -32,7 +32,16 @@ public class PagamentoService {
     }
 
     private Pagamento gerarPagamento(Contrato novoContrato, LocalDate data, int numero) {
-        Pagamento novoPagamento = new Pagamento(null, novoContrato, novoContrato.getValorContrato()/novoContrato.getDuracaoEmMeses(), data, null, null, null, numero);
+        Double valorParcela = novoContrato.getValorContrato() / novoContrato.getDuracaoEmMeses();
+        Pagamento novoPagamento = Pagamento.builder()
+                .contrato(novoContrato)
+                .valor(valorParcela)
+                .valorOriginal(valorParcela)
+                .valorAtualizado(valorParcela)
+                .multaAplicada(false)
+                .dataVencimento(data)
+                .numeroParcela(numero)
+                .build();
         novoPagamento.verificarStatus();
         return novoPagamento;
     }

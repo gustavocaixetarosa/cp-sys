@@ -1,65 +1,106 @@
 # 🗄️ Sistema de Backup Automático do Banco de Dados
 
-Sistema completo de backup automático do PostgreSQL com envio para Google Drive.
+Sistema completo de backup automático do PostgreSQL com envio para AWS S3.
 
 ## 📋 Características
 
 - ✅ Backup automático diário do banco de dados PostgreSQL
 - ✅ Compactação dos backups (.sql.gz)
-- ✅ Upload automático para Google Drive
-- ✅ Retenção configurável de backups locais (padrão: 7 dias)
+- ✅ Upload automático para AWS S3
+- ✅ Lifecycle Policy: backups expiram automaticamente após 3 dias no S3
+- ✅ Retenção de backups locais por 3 dias
 - ✅ Logs detalhados de execução
 - ✅ Script de restauração interativo
 - ✅ Notificações de status (configurável)
 
 ## 🚀 Instalação
 
-### 1. Executar o script de configuração
+### 1. Pré-requisitos
+
+**Instalar AWS CLI:**
+
+```bash
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install awscli
+
+# macOS
+brew install awscli
+
+# Ou via pip
+pip install awscli
+```
+
+**Configurar credenciais AWS:**
+
+Adicione as seguintes variáveis ao arquivo `.env` na raiz do projeto:
+
+```bash
+# AWS S3 Backup Config
+AWS_ACCESS_KEY_ID=your_access_key_here
+AWS_SECRET_ACCESS_KEY=your_secret_key_here
+AWS_DEFAULT_REGION=us-east-1
+S3_BACKUP_BUCKET=cobranca-backups
+```
+
+### 2. Criar Bucket S3
+
+Crie um bucket S3 na AWS Console ou via CLI:
+
+```bash
+aws s3 mb s3://cobranca-backups --region us-east-1
+```
+
+### 3. Configurar Lifecycle Policy
+
+Execute o script para configurar a expiração automática após 3 dias:
 
 ```bash
 cd /home/gustavorosa/projects/cp-sys/scripts/backup
-chmod +x setup-backup.sh
-./setup-backup.sh
+chmod +x setup-s3-lifecycle.sh
+./setup-s3-lifecycle.sh [nome-do-bucket]
 ```
 
-Este script irá:
-- Instalar o rclone (se necessário)
-- Configurar a conexão com Google Drive
-- Criar o cron job para backup diário
-- Executar um backup de teste
+Este script configura automaticamente a política de lifecycle para deletar backups após 3 dias.
 
-### 2. Configuração do Google Drive
+### 4. Configurar Cron Job
 
-Durante a instalação, você precisará autenticar com sua conta Google:
+Adicione o backup ao crontab para execução diária:
 
-**Se estiver em um desktop (com navegador):**
-- Escolha "y" para auto config
-- Uma janela do navegador será aberta
-- Faça login com sua conta Google
-- Autorize o acesso
+```bash
+crontab -e
+```
 
-**Se estiver em um servidor (sem navegador):**
-- Escolha "n" para auto config
-- Copie a URL fornecida
-- Abra em um navegador no seu computador
-- Faça login e autorize
-- Cole o código de autorização no terminal
+Adicione a linha (executa diariamente às 01:00):
+
+```bash
+0 1 * * * /home/gustavorosa/projects/cp-sys/scripts/backup/backup-database.sh >> /home/gustavorosa/projects/cp-sys/backups/logs/cron.log 2>&1
+```
+
+### 5. Testar Backup Manual
+
+Execute um backup de teste:
+
+```bash
+cd /home/gustavorosa/projects/cp-sys/scripts/backup
+./backup-database.sh
+```
 
 ## 📁 Estrutura de Arquivos
 
 ```
 cp-sys/
 ├── scripts/backup/
-│   ├── backup-database.sh    # Script principal de backup
-│   ├── setup-backup.sh       # Script de instalação
-│   ├── restore-backup.sh     # Script de restauração
-│   └── README.md             # Esta documentação
-├── backups/                  # Backups locais
+│   ├── backup-database.sh      # Script principal de backup
+│   ├── setup-s3-lifecycle.sh   # Script para configurar lifecycle no S3
+│   ├── restore-backup.sh       # Script de restauração
+│   └── README.md               # Esta documentação
+├── backups/                    # Backups locais (retenção: 3 dias)
 │   ├── cobranca_backup_*.sql.gz
-│   └── logs/                 # Logs de execução
+│   └── logs/                   # Logs de execução
 │       ├── backup-*.log
 │       └── cron.log
-└── .env                      # Variáveis de ambiente
+└── .env                        # Variáveis de ambiente (inclui credenciais AWS)
 ```
 
 ## 🔧 Uso
@@ -95,10 +136,10 @@ tail -f ~/projects/cp-sys/backups/logs/cron.log
 ls -lh ~/projects/cp-sys/backups/cobranca_backup_*.sql.gz
 ```
 
-**Backups no Google Drive:**
+**Backups no S3:**
 
 ```bash
-rclone ls gdrive:Backups/cobranca-db
+aws s3 ls s3://cobranca-backups/backups/
 ```
 
 ### Restaurar Backup
@@ -119,10 +160,10 @@ cd /home/gustavorosa/projects/cp-sys/scripts/backup
 > ⚠️ **ATENÇÃO:** A restauração substitui completamente o banco de dados atual!
 > Um backup de segurança é criado automaticamente antes da restauração.
 
-### Baixar Backup do Google Drive
+### Baixar Backup do S3
 
 ```bash
-rclone copy gdrive:Backups/cobranca-db/cobranca_backup_2025-12-22_02-00-00.sql.gz ~/projects/cp-sys/backups/
+aws s3 cp s3://cobranca-backups/backups/cobranca_backup_2025-12-22_02-00-00.sql.gz ~/projects/cp-sys/backups/
 ```
 
 ## ⏰ Agendamento (Cron)
@@ -187,11 +228,15 @@ Os scripts devem ter permissão de execução apenas para o proprietário:
 chmod 700 scripts/backup/*.sh
 ```
 
-### Google Drive
+### AWS S3
 
-- Os backups são armazenados na pasta `Backups/cobranca-db` do seu Google Drive
-- Apenas você tem acesso aos arquivos
-- Recomenda-se ativar autenticação de dois fatores na conta Google
+- Os backups são armazenados no bucket S3 configurado
+- Lifecycle Policy deleta automaticamente backups após 3 dias
+- Recomenda-se:
+  - Usar IAM User com permissões mínimas necessárias
+  - Habilitar versionamento do bucket (opcional)
+  - Configurar criptografia no bucket (opcional)
+  - Usar bucket em região próxima ao servidor para reduzir latência
 
 ## 📊 Monitoramento
 
@@ -203,10 +248,10 @@ chmod 700 scripts/backup/*.sh
 ls -lth ~/projects/cp-sys/backups/cobranca_backup_*.sql.gz | head -n 1
 ```
 
-**2. Verificar último backup no Google Drive:**
+**2. Verificar último backup no S3:**
 
 ```bash
-rclone ls gdrive:Backups/cobranca-db --max-age 24h
+aws s3 ls s3://cobranca-backups/backups/ --recursive | tail -n 1
 ```
 
 **3. Verificar logs de hoje:**
@@ -235,22 +280,31 @@ Configure o sendmail ou use um serviço SMTP.
 
 ## 🔧 Configurações Avançadas
 
-### Alterar Retenção de Backups
+### Alterar Retenção de Backups Locais
 
 Edite o arquivo `backup-database.sh`:
 
 ```bash
 # Linha 50
-BACKUP_RETENTION_DAYS=7  # Alterar para o número de dias desejado
+BACKUP_RETENTION_DAYS=3  # Alterar para o número de dias desejado
 ```
 
-### Alterar Pasta no Google Drive
+**Nota:** A retenção no S3 é controlada pela Lifecycle Policy (3 dias). Para alterar, execute novamente o `setup-s3-lifecycle.sh` ou configure manualmente no AWS Console.
 
-Edite o arquivo `backup-database.sh`:
+### Alterar Bucket ou Prefixo S3
+
+Edite o arquivo `backup-database.sh` ou configure via variáveis de ambiente no `.env`:
+
+```bash
+# No .env
+S3_BACKUP_BUCKET=meu-bucket-personalizado
+```
+
+No script, o prefixo pode ser alterado:
 
 ```bash
 # Linha 52
-GDRIVE_BACKUP_PATH="Backups/cobranca-db"  # Alterar para a pasta desejada
+S3_BACKUP_PATH="backups"  # Alterar para o prefixo desejado
 ```
 
 ### Comprimir Mais os Backups
@@ -281,17 +335,20 @@ gzip -9 > "${BACKUP_PATH}"  # -9 = compressão máxima
    ./backup-database.sh
    ```
 
-### Erro de conexão com Google Drive
+### Erro de conexão com AWS S3
 
-1. Reconfigurar rclone:
+1. Verificar credenciais AWS:
    ```bash
-   rclone config reconnect gdrive:
+   aws configure list
    ```
 
-2. Testar conexão:
+2. Testar acesso ao bucket:
    ```bash
-   rclone lsd gdrive:
+   aws s3 ls s3://cobranca-backups/
    ```
+
+3. Verificar permissões IAM:
+   - O usuário precisa ter permissões: `s3:PutObject`, `s3:GetObject`, `s3:ListBucket`
 
 ### Backup muito grande
 
@@ -330,29 +387,33 @@ docker-compose up -d
 # Restaurar backup (interativo)
 ./restore-backup.sh
 
-# Listar backups no Drive
-rclone ls gdrive:Backups/cobranca-db
+# Listar backups no S3
+aws s3 ls s3://cobranca-backups/backups/
 
-# Baixar backup específico
-rclone copy gdrive:Backups/cobranca-db/arquivo.sql.gz ./
+# Baixar backup específico do S3
+aws s3 cp s3://cobranca-backups/backups/arquivo.sql.gz ./
 
-# Verificar espaço usado no Drive
-rclone size gdrive:Backups/cobranca-db
+# Verificar espaço usado no S3
+aws s3 ls s3://cobranca-backups/backups/ --recursive --summarize
 
 # Limpar backups locais antigos manualmente
-find ~/projects/cp-sys/backups -name "cobranca_backup_*.sql.gz" -mtime +7 -delete
+find ~/projects/cp-sys/backups -name "cobranca_backup_*.sql.gz" -mtime +3 -delete
 
-# Ver configuração do rclone
-rclone config show
+# Verificar configuração AWS
+aws configure list
 
-# Testar configuração do rclone
-rclone config reconnect gdrive:
+# Testar acesso ao bucket
+aws s3 ls s3://cobranca-backups/
+
+# Configurar lifecycle policy
+./setup-s3-lifecycle.sh
 ```
 
 ## 📚 Referências
 
 - [PostgreSQL pg_dump Documentation](https://www.postgresql.org/docs/current/app-pgdump.html)
-- [Rclone Documentation](https://rclone.org/docs/)
+- [AWS CLI Documentation](https://docs.aws.amazon.com/cli/latest/userguide/)
+- [AWS S3 Lifecycle Policies](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html)
 - [Cron Schedule Examples](https://crontab.guru/)
 
 ## 🆘 Suporte
@@ -362,7 +423,7 @@ Em caso de problemas:
 1. Verifique os logs em `~/projects/cp-sys/backups/logs/`
 2. Execute o backup manualmente para ver erros em tempo real
 3. Verifique se o container PostgreSQL está rodando
-4. Verifique a conexão com Google Drive: `rclone lsd gdrive:`
+4. Verifique a conexão com AWS S3: `aws s3 ls s3://cobranca-backups/`
 
 ---
 
