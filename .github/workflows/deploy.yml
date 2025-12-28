@@ -36,8 +36,19 @@ jobs:
             echo "🚀 Starting deployment..."
             
             # Navigate to project directory
-            PROJECT_DIR=$(cd /home/gustavorosa/cp-sys 2>/dev/null && pwd || cd ~/cp-sys 2>/dev/null && pwd || cd /root/projects/cp-sys 2>/dev/null && pwd || { echo "❌ Project directory not found"; exit 1; })
+            if [ -d "/home/gustavorosa/cp-sys" ]; then
+              PROJECT_DIR="/home/gustavorosa/cp-sys"
+            elif [ -d "$HOME/cp-sys" ]; then
+              PROJECT_DIR="$HOME/cp-sys"
+            elif [ -d "/root/projects/cp-sys" ]; then
+              PROJECT_DIR="/root/projects/cp-sys"
+            else
+              echo "❌ Project directory not found"
+              exit 1
+            fi
+            
             cd "$PROJECT_DIR"
+            echo "📁 Working directory: $(pwd)"
             
             # Fix Git ownership issue (safe directory)
             echo "🔧 Configuring Git safe directory..."
