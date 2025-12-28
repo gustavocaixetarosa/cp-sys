@@ -124,6 +124,9 @@ pull_latest_code() {
     
     # Check if git repo
     if [ -d .git ]; then
+        # Fix Git ownership issue (safe directory)
+        git config --global --add safe.directory "$PROJECT_DIR" 2>/dev/null || true
+        
         git fetch origin main
         git reset --hard origin/main
         success "Code updated to latest version"
