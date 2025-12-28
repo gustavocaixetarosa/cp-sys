@@ -36,7 +36,7 @@ jobs:
             echo "🚀 Starting deployment..."
             
             # Navigate to project directory
-            PROJECT_DIR=$(cd ~/cp-sys 2>/dev/null && pwd || cd /root/projects/cp-sys 2>/dev/null && pwd || { echo "❌ Project directory not found"; exit 1; })
+            PROJECT_DIR=$(cd /home/gustavorosa/cp-sys 2>/dev/null && pwd || cd ~/cp-sys 2>/dev/null && pwd || cd /root/projects/cp-sys 2>/dev/null && pwd || { echo "❌ Project directory not found"; exit 1; })
             cd "$PROJECT_DIR"
             
             # Fix Git ownership issue (safe directory)
